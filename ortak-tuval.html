@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>SanArt - Ortak Tuval</title>
+    <style>
+        body {
+            background-color:  #ded6c2 ;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 10px;
+            color: #2c221e;
+            text-align: center;
+            overflow-x: hidden;
+        }
+        h2 { color:  #ded6c2 ; margin-bottom: 5px; font-size: 18px; }
+        p { font-size: 12px; color: #ded6c2; margin-bottom: 10px; }
+        
+        .container {
+            max-width: 650px;
+            margin: 0 auto;
+            background: #2b2201 ;
+            border: 1px solid #ded6c2;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        /* Renk Paleti */
+        .palet {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            margin: 10px 0;
+            flex-wrap: wrap;
+        }
+        .renk-kutusu {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            cursor: pointer;
+            border: 2px solid #ded6c2;
+            transition: transform 0.1s;
+        }
+        .renk-kutusu:hover { transform: scale(1.15); }
+        .renk-kutusu.aktif { border: 2px solid #2c221e; transform: scale(1.2); box-shadow: 0 0 5px rgba(0,0,0,0.3); }
+
+        /* Zoom ve Tuval Kapsayıcı Alanı */
+        .tuval-dis-kapsayici {
+            position: relative;
+            width: 100%;
+            height: 400px;
+            max-width: 550px;
+            margin: 10px auto;
+            background: #ffffff;
+            border: 2px solid #b89565;
+            border-radius: 8px;
+            overflow: hidden;
+            touch-action: none;
+            cursor: grab;
+        }
+        .tuval-dis-kapsayici:active {
+            cursor: grabbing;
+        }
+
+        #tuvalAlani {
+            display: grid;
+            grid-template-columns: repeat(60, 1fr); /* 60x60 Piksel */
+            background-color: #bfa487;
+            border: 1px solid #bfa487;
+            width: 1200px;
+            height: 1200px;
+            transform-origin: 0 0;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }
+        .piksel {
+            background-color: #ffffff;
+            width: 100%;
+            height: 100%;
+            border: 0.5px solid rgba(191, 164, 135, 0.3);
+            box-sizing: border-box;
+            cursor: pointer;
+        }
+
+        /* Zoom Kontrol Butonları */
+        .zoom-kontroller {
+            margin: 5px 0;
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+        }
+        .zoom-btn {
+            background: #bfa487;
+            color: #2b2201;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .butonlar {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            background: #a65b32;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .btn-geri {
+            background: #7a6555;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>SanArt Ortak Tuval</h2>
+        <p>İki parmağınla veya fare tekerleğiyle yakınlaştırıp uzaklaştırabilir, sürükleyerek gezebilirsin!</p>
+
+        <!-- Renk Paleti -->
+        <div class="palet" id="renkPaleti"></div>
+
+        <!-- Zoom Butonları -->
+        <div class="zoom-kontroller">
+            <button class="zoom-btn" onclick="zoomUzaklastir()">🔍 - Uzaklaştır</button>
+            <button class="zoom-btn" onclick="zoomSifirla()">En Uzak / Sıfırla</button>
+            <button class="zoom-btn" onclick="zoomYakinlastir()">🔍 + Yakınlaştır</button>
+        </div>
+
+        <!-- Tuval Kapsayıcısı -->
+        <div class="tuval-dis-kapsayici" id="disKapsayici">
+            <div id="tuvalAlani"></div>
+        </div>
+
+        <div class="butonlar">
+            <button class="btn btn-geri" onclick="location.href='index.html'">⬅ Ana Sayfaya Dön</button>
+            <button class="btn" onclick="tuvaliSifirla()" style="background: #8b0000; display:none;" id="sifirlaBtn">Tuvali Temizle (Yönetici)</button>
+        </div>
+    </div>
+
+    <script>
+        const renkler = [
+            "#000000", "#ffffff", "#8b0000", "#ff0000", 
+            "#ffa500", "#ffff00", "#008000", "#00ffff", 
+            "#0000ff", "#800080", "#ffc0cb", "#bfa487"
+        ];
+
+        let secilenRenk = "#8b0000";
+        const satirSutunSayisi = 60;
+        const toplamPiksel = satirSutunSayisi * satirSutunSayisi;
+
+        var kaydedilenKullanici = localStorage.getItem("sanart_kullanici");
+
+        // Renk paleti oluşturma
+        const paletDiv = document.getElementById('renkPaleti');
+        renkler.forEach((renk, index) => {
+            let kutu = document.createElement('div');
+            kutu.className = 'renk-kutusu' + (index === 2 ? ' aktif' : '');
+            kutu.style.backgroundColor = renk;
+            kutu.onclick = function() {
+                document.querySelectorAll('.renk-kutusu').forEach(k => k.classList.remove('aktif'));
+                kutu.classList.add('aktif');
+                secilenRenk = renk;
+            };
+            paletDiv.appendChild(kutu);
+        });
+
+        // Tuval piksellerini oluşturma
+        const tuvalDiv = document.getElementById('tuvalAlani');
+        let kaydedilenPikseller = JSON.parse(localStorage.getItem("sanart_ortak_tuval_detay_60") || "{}");
+
+        for (let i = 0; i < toplamPiksel; i++) {
+            let piksel = document.createElement('div');
+            piksel.className = 'piksel';
+            
+            if (kaydedilenPikseller[i]) {
+                piksel.style.backgroundColor = kaydedilenPikseller[i].renk;
+                piksel.title = "Boyayan: " + kaydedilenPikseller[i].kullanici;
+            } else {
+                piksel.title = "Boş Piksel";
+            }
+
+            let tiklandiMi = false;
+            piksel.onmousedown = () => { tiklandiMi = true; };
+            piksel.onmousemove = () => { tiklandiMi = false; };
+            piksel.onmouseup = function() {
+                if (!tiklandiMi) return;
+                
+                if (!kaydedilenKullanici) {
+                    alert("Tuvale renk koyabilmek için önce profil kısmından giriş yapmalısın!");
+                    return;
+                }
+
+                piksel.style.backgroundColor = secilenRenk;
+                piksel.title = "Boyayan: " + kaydedilenKullanici;
+
+                kaydedilenPikseller[i] = {
+                    renk: secilenRenk,
+                    kullanici: kaydedilenKullanici
+                };
+                
+                localStorage.setItem("sanart_ortak_tuval_detay_60", JSON.stringify(kaydedilenPikseller));
+            };
+
+            tuvalDiv.appendChild(piksel);
+        }
+
+        // --- ZOOM VE PAN KONTROLLERİ ---
+        const kapsayici = document.getElementById('disKapsayici');
+        
+        // Kapsayıcı alanın genişliğine göre başlangıç zoom oranını otomatik hesapla (Tam sığması için)
+        let minScale = kapsayici.clientWidth / 1200;
+        let scale = minScale; 
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let startX, startY;
+
+        function bileseniGuncelle() {
+            tuvalDiv.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+
+        // Sayfa açıldığında tam sığdırılmış (en uzak) şekilde başlat
+        bileseniGuncelle();
+
+        function zoomYakinlastir() {
+            scale = Math.min(scale * 1.3, 5);
+            bileseniGuncelle();
+        }
+
+        function zoomUzaklastir() {
+            scale = Math.max(scale / 1.3, minScale);
+            bileseniGuncelle();
+        }
+
+        function zoomSifirla() {
+            scale = minScale; // Tam sığdırılmış minimum boyut
+            panX = 0;
+            panY = 0;
+            bileseniGuncelle();
+        }
+
+        // Fare ile sürükleme
+        kapsayici.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startX = e.clientX - panX;
+            startY = e.clientY - panY;
+        });
+
+        window.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            panX = e.clientX - startX;
+            panY = e.clientY - startY;
+            bileseniGuncelle();
+        });
+
+        window.addEventListener('mouseup', () => {
+            isDragging = false;
+        });
+
+        // Fare tekerleği ile Zoom
+        kapsayici.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const zoomHizi = 1.1;
+            if (e.deltaY < 0) {
+                scale = Math.min(scale * zoomHizi, 5);
+            } else {
+                scale = Math.max(scale / zoomHizi, minScale);
+            }
+            bileseniGuncelle();
+        }, { passive: false });
+
+        // Mobil Dokunmatik Kontroller (Pinch-to-Zoom ve Sürükleme)
+        let baslangicMesafe = null;
+
+        kapsayici.addEventListener('touchstart', (e) => {
+            if (e.touches.length === 1) {
+                isDragging = true;
+                startX = e.touches[0].clientX - panX;
+                startY = e.touches[0].clientY - panY;
+            } else if (e.touches.length === 2) {
+                isDragging = false;
+                baslangicMesafe = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+            }
+        });
+
+        kapsayici.addEventListener('touchmove', (e) => {
+            if (e.touches.length === 1 && isDragging) {
+                panX = e.touches[0].clientX - startX;
+                panY = e.touches[0].clientY - startY;
+                bileseniGuncelle();
+            } else if (e.touches.length === 2 && baslangicMesafe) {
+                let aktifMesafe = Math.hypot(
+                    e.touches[0].clientX - e.touches[1].clientX,
+                    e.touches[0].clientY - e.touches[1].clientY
+                );
+                let oran = aktifMesafe / baslangicMesafe;
+                scale = Math.min(Math.max(scale * (oran > 1 ? 1.05 : 0.95), minScale), 5);
+                baslangicMesafe = aktifMesafe;
+                bileseniGuncelle();
+            }
+        });
+
+        kapsayici.addEventListener('touchend', () => {
+            isDragging = false;
+            baslangicMesafe = null;
+        });
+
+        // Yönetici paneli kontrolü
+        var yoneticiler = ["admin", "baskan", "yonetici", "sanart"];
+        if (kaydedilenKullanici && yoneticiler.some(y => kaydedilenKullanici.toLowerCase().includes(y))) {
+            document.getElementById('sifirlaBtn').style.display = "inline-block";
+        }
+
+        function tuvaliSifirla() {
+            if (confirm("Tuvali tamamen sıfırlamak istediğine emin misin?")) {
+                localStorage.removeItem("sanart_ortak_tuval_detay_60");
+                location.reload();
+            }
+        }
+    </script>
+</body>
+</html>

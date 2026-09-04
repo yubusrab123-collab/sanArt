@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SanArt - Dijital Sanat Galerisi (Sergi)</title>
+    <link rel="icon" href="logo.jpg" type="image/jpeg">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body style="background-color: #2b2201; color: #fcefdc; font-family: 'Georgia', serif; padding: 20px;">
+
+    <div style="max-width: 600px; margin: 0 auto; text-align: center;">
+        <h1 style="color: #ffd8a8; font-size: 24px; margin-bottom: 5px; border-bottom: 2px solid #bfa487; padding-bottom: 10px;">🏛️ SanArt Dijital Sergi Salonu</h1>
+        <p style="font-size: 13px; color: #e6d7c3; font-style: italic; margin-bottom: 25px;">"Her ayın 15'inde topluluğumuzun en çok beğenilen 10 eşsiz eseri bu duvarda sergilenir."</p>
+
+        <!-- Galeri Duvarı / Eser Alanı -->
+        <div id="galeriDuvari" style="display: grid; gap: 25px;">
+            <p style="font-size: 14px; color: #ffd8a8;">Sergi eserleri yükleniyor...</p>
+        </div>
+
+        <br>
+        <button onclick="location.href='index.html'" style="background: #bfa487; color: #2b2201; padding: 10px 20px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 40px;">← Ana Sayfaya Dön</button>
+    </div>
+
+    <script>
+        window.onload = function() {
+            var simdi = new Date();
+            var gun = simdi.getDate();
+            var galeriDiv = document.getElementById('galeriDuvari');
+
+            if (gun >= 15) {
+                var eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+                eserler.sort(function(a, b) { return (b.begeni || 0) - (a.begeni || 0); });
+                var enIyiOn = eserler.slice(0, 10);
+
+                if (enIyiOn.length > 0) {
+                    galeriDiv.innerHTML = "";
+                    enIyiOn.forEach(function(eser, index) {
+                        var tabloDiv = document.createElement('div');
+                        tabloDiv.style.cssText = "background: #faf6f0; border: 4px solid #bfa487; border-radius: 8px; padding: 15px; box-shadow: 0 8px 25px rgba(0,0,0,0.6); text-align: center; color: #2c221e;";
+                        tabloDiv.innerHTML = `
+                            <span style="display: block; font-size: 11px; color: #7a6555; margin-bottom: 8px; font-weight: bold; letter-spacing: 1px;">SERGİ ESERİ #${index + 1}</span>
+                            <div style="width: 100%; max-height: 400px; overflow: hidden; border: 2px solid #bfa487; border-radius: 4px; background: #000; margin-bottom: 10px;">
+                                <img src="${eser.gorsel}" style="width: 100%; height: auto; max-height: 400px; object-fit: contain;">
+                            </div>
+                            <h3 style="font-size: 16px; color: #a65b32; margin: 5px 0;">${eser.baslik || 'İsimsiz Eser'}</h3>
+                            <p style="font-size: 13px; color: #2c221e; margin-bottom: 5px;">${eser.aciklama || ''}</p>
+                            <span style="font-size: 12px; font-weight: bold; color: #a65b32;">❤️ ${eser.begeni || 0} Beğeni</span>
+                        `;
+                        galeriDiv.appendChild(tabloDiv);
+                    });
+                } else {
+                    galeriDiv.innerHTML = `<p style="color: #ffd8a8;">Henüz sergilenecek eser bulunmuyor.</p>`;
+                }
+            } else {
+                galeriDiv.innerHTML = `
+                    <div style="background: #382d06; border: 2px solid #bfa487; padding: 30px; border-radius: 8px;">
+                        <h2 style="color: #ffd8a8; font-size: 18px; margin-bottom: 10px;">Kapalı Sergi Salonu</h2>
+                        <p style="font-size: 13px; color: #fcefdc;">Bu galeri odası her ayın 15'inde kapılarını ziyaretçilere aralar ve ay boyunca en çok beğenilen 10 eser burada onurlandırılır.</p>
+                    </div>
+                `;
+            }
+        };
+    </script>
+</body>
+</html>
