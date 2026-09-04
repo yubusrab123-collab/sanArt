@@ -372,3 +372,148 @@ function etkinlikBegeniArttir(id) {
     localStorage.setItem("sanart_begenilen_etkinlikler", JSON.stringify(begenilenler));
     etkinlikleriYukle();
 }
+
+// ==========================================
+// FİREBASE FIRESTORE ENTEGRASYONU (SCRIPT.JS)
+// ==========================================
+
+// Firebase Başlatma Kontrolü ve Servisler
+let db = null;
+let auth = null;
+
+try {
+    if (typeof firebase !== 'undefined' && firebase.apps.length > 0) {
+        db = firebase.firestore();
+        auth = firebase.auth();
+    }
+} catch (e) {
+    console.warn("Firebase servisleri başlatılamadı, localStorage yedek modunda çalışılıyor.", e);
+}
+
+// 1. KULLANICI & OTURUM YÖNETİMİ
+function aktifKullaniciGetir() {
+    return localStorage.getItem("sanart_kullanici") || "Misafir";
+}
+
+function oturumKontroluUI() {
+    let aktif = aktifKullaniciGetir();
+    let profilMetin = document.getElementById('altMenuProfilMetin');
+    let profilHarf = document.getElementById('altMenuAvatarHarf');
+    
+    if (aktif && aktif !== "Misafir") {
+        if(profilMetin) profilMetin.innerText = aktif;
+        if(profilHarf) profilHarf.innerText = aktif.charAt(0).toUpperCase();
+    }
+}
+
+// 2. ESERLERİ FIRESTORE'DAN ÇEKME VE YÜKLEME
+async function eserleriGetir(callback) {
+    if (db) {
+        try {
+            let snapshot = await db.collection("eserler").orderBy("tarihMs", "desc").get();
+            let eserler = [];
+            snapshot.forEach(doc => {
+                eserler.push({ id: doc.id, ...doc.data() });
+            });
+            callback(eserler);
+            return;
+        } catch (error) {
+            console.error("Firestore eser çekme hatası:", error);
+        }
+    }
+    // Yedek: localStorage
+    let yerelEserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+    callback(yerelEserler.reverse());
+}
+
+async function eserEkleFirestore(yeniEser) {
+    if (db) {
+        try {
+            await db.collection("eserler").add({
+                ...yeniEser,
+                tarihMs: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            return true;
+        } catch (error) {
+            console.error("Firestore eser ekleme hatası:", error);
+        }
+    }
+    // Yedek: localStorage
+    let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+    eserler.push(yeniEser);
+    localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+    return true;
+}
+
+// 3. BEĞENİ VE YORUM İŞLEMLERİ (FIRESTORE)
+async function begeniGuncelleFirestore(eserId, yeniBegenenler) {
+    if (db) {
+        try {
+            await db.collection("eserler").doc(String(eserId)).update({
+                begenenler: yeniBegenenler
+            });
+            return;
+        } catch (error) {
+            console.error("Firestore beğeni güncelleme hatası:", error);
+        }
+    }
+    // Yedek
+    let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+    let eser = eserler.find(e => String(e.id) === String(eserId));
+    if (eser) {
+        eser.begenenler = yeniBegenenler;
+        localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+    }
+}
+
+async function yorumEkleFirestore(eserId, yeniYorumlar) {
+    if (db) {
+        try {
+            await db.collection("eserler").doc(String(eserId)).update({
+                yorumlar: yeniYorumlar
+            });
+            return;
+        } catch (error) {
+            console.error("Firestore yorum ekleme hatası:", error);
+        }
+    }
+    // Yedek
+    let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+    let eser = eserler.find(e => String(e.id) === String(eserId));
+    if (eser) {
+        eser.yorumlar = yeniYorumlar;
+        localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+    }
+}
+
+// 4. DUYURULAR VE ETKİNLİKLER
+async function duyurulariGetir(callback) {
+    if (db) {
+        try {
+            let snapshot = await db.collection("duyurular").orderBy("tarihMs", "desc").get();
+            let duyurular = [];
+            snapshot.forEach(doc => duyurular.push({ id: doc.id, ...doc.data() }));
+            callback(duyurular);
+            return;
+        } catch (e) { console.error(e); }
+    }
+    callback(JSON.parse(localStorage.getItem("sanart_duyurular") || "[]"));
+}
+
+async function etkinlikleriGetir(callback) {
+    if (db) {
+        try {
+            let snapshot = await db.collection("etkinlikler").orderBy("tarihMs", "desc").get();
+            let etkinlikler = [];
+            snapshot.forEach(doc => etkinlikler.push({ id: doc.id, ...doc.data() }));
+            callback(etkinlikler);
+            return;
+        } catch (e) { console.error(e); }
+    }
+    callback(JSON.parse(localStorage.getItem("sanart_etkinlikler") || "[]"));
+}
+
+// Genel Sayfa Yüklenme Olayları
+window.addEventListener('DOMContentLoaded', function() {
+    oturumKontroluUI();
+});
