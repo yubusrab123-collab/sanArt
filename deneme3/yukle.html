@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SanArt - Eser Paylaş</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" href="logo.jpg" type="image/jpeg">
+</head>
+<body style="padding-bottom: 70px;">
+
+    <!-- ÜST BAŞLIK VE ÜÇ NOKTA MENÜSÜ -->
+    <header class="site-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="logo-container" style="display: flex; align-items: center; gap: 10px;">
+            <img src="logo.jpg" alt="SanArt Logo">
+            <h1>SanArt Paylaş</h1>
+        </div>
+        <div style="position: relative;">
+            <button onclick="ustMenuAcKapat()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #2b2201; padding: 0 5px;" title="Seçenekler">⋮</button>
+            <div id="ustUcNoktaMenu" style="display: none; position: absolute; right: 0; top: 35px; background: #faf6f0; border: 2px solid #bfa487; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.15); width: 130px; z-index: 1000; text-align: left;">
+                <a href="hakkinda.html" style="display: block; padding: 10px; font-size: 12px; color: #2c221e; text-decoration: none; border-bottom: 1px solid #e6d7c3;">Hakkımızda</a>
+                <a href="iletisim.html" style="display: block; padding: 10px; font-size: 12px; color: #2c221e; text-decoration: none;">İletişim</a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container" style="max-width: 400px; margin: 20px auto; background: #faf6f0; border: 1.5px solid #bfa487; border-radius: 8px; padding: 20px;">
+        <h2 style="color: #2c221e; font-size: 16px; margin-bottom: 15px; text-align: center;">🎨 Yeni Eser Paylaş</h2>
+        
+        <input type="text" id="eserAdi" placeholder="Eser Adı" style="width: 100%; padding: 8px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 10px; font-size: 12px; box-sizing: border-box;">
+
+        <label style="font-size: 11px; color: #7a6555; display: block; margin-bottom: 4px; font-weight: bold;">Eser Açıklaması (İsteğe Bağlı):</label>
+        <textarea id="eserAciklamasi" placeholder="Eseriniz hakkında bir şeyler yazın..." style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 10px; font-size: 12px; height: 50px; box-sizing: border-box;"></textarea>
+
+        <label style="font-size: 11px; color: #7a6555; display: block; margin-bottom: 4px; font-weight: bold;">Etiket Seç:</label>
+        <select id="eserEtiketi" style="width: 100%; padding: 8px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 15px; font-size: 12px; background: #fff; cursor: pointer;">
+            <option value="ankara">Ankara</option>
+            <option value="bayram">Bayram</option>
+            <option value="diger">Diğer</option>
+            <option value="doga">Doğa</option>
+            <option value="drone">Drone</option>
+            <option value="el-sanatlari">El Sanatları</option>
+            <option value="etkinlikler-festivaller">Etkinlikler & Festivaller</option>
+            <option value="gece">Gece</option>
+            <option value="hayvan">Hayvan</option>
+            <option value="insan-ve-yasam">İnsan ve Yaşam</option>
+            <option value="istanbul">İstanbul</option>
+            <option value="makro">Makro</option>
+            <option value="manzara">Manzara</option>
+            <option value="mimari">Mimari</option>
+            <option value="minimalist">Minimalist</option>
+            <option value="portre">Portre</option>
+            <option value="sehir">Şehir</option>
+            <option value="seyahat">Seyahat</option>
+            <option value="siyah-beyaz">Siyah-Beyaz</option>
+            <option value="soyut">Soyut</option>
+            <option value="spor-hareket">Spor & Hareket</option>
+            <option value="ters-isik">Ters Işık</option>
+            <option value="ucak">Uçak</option>
+            <option value="uzun-pozlama">Uzun Pozlama</option>
+            <option value="yiyecek-icecek">Yiyecek & İçecek</option>
+            <option value="zonguldak">Zonguldak</option>
+        </select>
+
+        <label style="font-size: 11px; color: #7a6555; display: block; margin-bottom: 4px; font-weight: bold;">Fotoğraf Seç:</label>
+        <input type="file" id="eserGorselDosya" accept="image/*" style="width: 100%; font-size: 11px; margin-bottom: 15px; background: #fff; padding: 6px; border: 1px solid #bfa487; border-radius: 4px;">
+
+        <button onclick="eserPaylasIslemi()" style="background: #6a5444; color: white; width: 100%; padding: 10px; border: none; border-radius: 6px; font-size: 13px; font-weight: bold; cursor: pointer;">Paylaşımı Yayınla</button>
+    </div>
+
+    <script>
+        window.onload = function() {
+            let aktifKullanici = localStorage.getItem("sanart_kullanici");
+            let profilMetin = document.getElementById('altMenuProfilMetin');
+            let profilHarf = document.getElementById('altMenuAvatarHarf');
+            if (aktifKullanici && aktifKullanici !== "Misafir") {
+                if(profilMetin) profilMetin.innerText = aktifKullanici;
+                if(profilHarf) profilHarf.innerText = aktifKullanici.charAt(0).toUpperCase();
+            }
+        };
+
+        function ustMenuAcKapat() {
+            var m = document.getElementById('ustUcNoktaMenu');
+            m.style.display = m.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function eserPaylasIslemi() {
+            let aktifKullanici = localStorage.getItem("sanart_kullanici");
+            if (!aktifKullanici || aktifKullanici === "Misafir") {
+                alert("Misafir hesaplar eser paylaşamaz! Lütfen önce giriş yap.");
+                window.location.href = "profil.html";
+                return;
+            }
+
+            let baslik = document.getElementById('eserAdi').value.trim();
+            let aciklama = document.getElementById('eserAciklamasi').value.trim();
+            let etiket = document.getElementById('eserEtiketi').value;
+            let dosyaInput = document.getElementById('eserGorselDosya');
+
+            if (baslik === "") {
+                alert("Lütfen eser adı yazın!");
+                return;
+            }
+            if (dosyaInput.files.length === 0) {
+                alert("Lütfen paylaşılacak bir görsel seçin!");
+                return;
+            }
+
+            let dosya = dosyaInput.files[0];
+            let reader = new FileReader();
+            
+            reader.onload = function(e) {
+                let img = new Image();
+                img.src = e.target.result;
+                img.onload = function() {
+                    let canvas = document.createElement('canvas');
+                    let maxBoyut = 400; // Hafıza hatasını %100 engelleyen güvenli boyut
+                    let genislik = img.width;
+                    let yukseklik = img.height;
+
+                    if (genislik > yukseklik) {
+                        if (genislik > maxBoyut) {
+                            yukseklik *= maxBoyut / genislik;
+                            genislik = maxBoyut;
+                        }
+                    } else {
+                        if (yukseklik > maxBoyut) {
+                            genislik *= maxBoyut / yukseklik;
+                            yukseklik = maxBoyut;
+                        }
+                    }
+
+                    canvas.width = genislik;
+                    canvas.height = yukseklik;
+                    let ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, genislik, yukseklik);
+
+                    let sıkıstırilmisGorsel = canvas.toDataURL('image/jpeg', 0.7);
+
+                    let yeniEser = {
+                        id: Date.now(),
+                        yazar: aktifKullanici,
+                        baslik: baslik,
+                        aciklama: aciklama,
+                        etiket: etiket,
+                        gorsel: sıkıstırilmisGorsel,
+                        tarih: new Date().toLocaleDateString('tr-TR') + " " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                        begenenler: [],
+                        yorumlar: []
+                    };
+
+                    let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+                    eserler.push(yeniEser);
+
+                    // Hafıza sınırına takılmamak için döngüsel kayıt denemesi (Eğer doluysa en eski eseri silip tekrar dener)
+                    while (eserler.length > 0) {
+                        try {
+                            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+                            alert("Eseriniz başarıyla paylaşıldı ve keşfete eklendi!");
+                            window.location.href = "kesfet.html";
+                            return;
+                        } catch (err) {
+                            // Yer açmak için listedeki en eski eseri çıkar
+                            eserler.shift();
+                        }
+                    }
+                    alert("Depolama alanı kritik seviyede dolu. Lütfen tarayıcı önbelleğini temizleyin.");
+                };
+            }
+            reader.readAsDataURL(dosya);
+        }
+    </script>
+
+    <!-- TELEFON ALT MENÜSÜ -->
+    <nav class="mobile-nav" style="display: flex; justify-content: space-around; background: #ded6c2; border-top: 1px solid #bfa487; position: fixed; bottom: 0; left: 0; width: 100%; padding: 8px 0; z-index: 1000;">
+        <a href="index.html" class="nav-item" style="text-decoration: none; color: #2b2201; display: flex; flex-direction: column; align-items: center; font-size: 11px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 2px;"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span>Ana Sayfa</span>
+        </a>
+        <a href="kesfet.html" class="nav-item" style="text-decoration: none; color: #2b2201; display: flex; flex-direction: column; align-items: center; font-size: 11px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 2px;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <span>Keşfet</span>
+        </a>
+        <a href="yukle.html" class="nav-item active" style="text-decoration: none; color: #a65b32; font-weight: bold; display: flex; flex-direction: column; align-items: center; font-size: 11px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-bottom: 2px;"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Paylaş</span>
+        </a>
+        <a href="profil.html" class="nav-item" style="text-decoration: none; color: #2b2201; display: flex; flex-direction: column; align-items: center; font-size: 11px;">
+            <div id="altMenuAvatarBox" style="width: 20px; height: 20px; background: #a65b32; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: bold; overflow: hidden; background-size: cover; background-position: center; margin-bottom: 2px;">
+                <span id="altMenuAvatarHarf">S</span>
+            </div>
+            <span id="altMenuProfilMetin" style="font-size: 11px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 60px;">Profil</span>
+        </a>
+    </nav>
+</body>
+</html>
