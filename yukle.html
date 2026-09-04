@@ -6,6 +6,29 @@
     <title>SanArt - Eser Paylaş</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="logo.jpg" type="image/jpeg">
+
+<!-- Firebase Kütüphaneleri -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+
+<script>
+  // Firebase Yapılandırman (Zaten index.html içinde tanımlı)
+  const firebaseConfig = {
+    apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
+    authDomain: "sanart-47b05.firebaseapp.com",
+    projectId: "sanart-47b05",
+    storageBucket: "sanart-47b05.firebasestorage.app",
+    messagingSenderId: "1054961895807",
+    appId: "1:1054961895807:web:ae15d759dc9517def5324a",
+    measurementId: "G-C40XHX8CRB"
+  };
+  // Firebase başlatma
+  if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+  }
+</script>
+    
 </head>
 <body style="padding-bottom: 70px;">
 
