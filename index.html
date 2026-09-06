@@ -6,25 +6,32 @@
     <title>SanArt Topluluğu - Ana Sayfa</title>
     <link rel="icon" href="logo.jpg" type="image/jpeg">
     <link rel="stylesheet" href="style.css">
-<!-- Firebase Kütüphaneleri -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
 
-    <script>
-  // Firebase yapılandırman
- const firebaseConfig = {
-  apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
-  authDomain: "sanart-47b05.firebaseapp.com",
-  projectId: "sanart-47b05",
-  storageBucket: "sanart-47b05.firebasestorage.app",
-  messagingSenderId: "1054961895807",
-  appId: "1:1054961895807:web:ae15d759dc9517def5324a",
-  measurementId: "G-C40XHX8CRB"
-  };
-</script>
- 
     
+<!-- Firebase Uyumluluk (Compat) Kütüphaneleri -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+<script>
+  // 1. Firebase yapılandırman
+  const firebaseConfig = {
+    apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
+    authDomain: "sanart-47b05.firebaseapp.com",
+    projectId: "sanart-47b05",
+    storageBucket: "sanart-47b05.firebasestorage.app",
+    messagingSenderId: "1054961895807",
+    appId: "1:1054961895807:web:ae15d759dc9517def5324a",
+    measurementId: "G-C40XHX8CRB"
+  };
+
+  // 2. Firebase uygulamasını başlat (EKSİK OLAN KISIM BUYDU)
+  firebase.initializeApp(firebaseConfig);
+
+  // 3. Firestore veritabanı değişkenini tanımla
+  const db = firebase.firestore();
+</script>
+
 </head>
 <body>
 
@@ -110,13 +117,7 @@
             </div>
         </section>
 
-        <!-- TAKİP EDİLENLERİN GÖNDERİLERİ (ANASAYFA AKIŞI) -->
-        <section class="card" style="margin-top: 25px;">
-            <h2 style="color: #2b2201;">👥 Takip Ettiklerimin Akışı</h2>
-            <div id="takipEdilenlerAkis" style="display: grid; gap: 15px; margin-top: 10px;">
-                <p style="font-style: italic; color: #2b2201; text-align: center;">Görüntülenecek gönderi bulunmuyor.</p>
-            </div>
-        </section>
+        
 
     </div>
 
@@ -143,138 +144,6 @@
     </nav>
 
     <script src="script.js"></script>
-    <script>
-        // Anasayfa özel takip akışı yükleyici (Keşfet mantığı ile güncellendi)
-        window.addEventListener('DOMContentLoaded', function() {
-            let aktif = localStorage.getItem("sanart_kullanici") || "Misafir";
-            let takipEdilenler = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + aktif) || "[]");
-            let tumEserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            
-            // Yeni fotoğrafların en üstte yer alması için listeyi ters çeviriyoruz
-            let tersEserler = [...tumEserler].reverse();
-            let akisDiv = document.getElementById('takipEdilenlerAkis');
-
-            let filtrelenmisEserler = tersEserler.filter(e => takipEdilenler.includes(e.yazar));
-
-            if (filtrelenmisEserler.length > 0) {
-                akisDiv.innerHTML = "";
-                filtrelenmisEserler.forEach(eser => {
-                    let begenenler = eser.begenenler || [];
-                    let begenildiMi = begenenler.includes(aktif);
-                    let eserYazari = eser.yazar || "Sanatçı";
-                    let eserAvatar = localStorage.getItem("sanart_avatar_" + eserYazari) || "";
-                    let yazarHarf = eserYazari.charAt(0).toUpperCase();
-
-                    let profilFotoHTML = eserAvatar && eserAvatar.startsWith('data:image') ? 
-                        `<div onclick="window.location.href='profil.html?kisi=${encodeURIComponent(eserYazari)}'" style="width: 32px; height: 32px; border-radius: 50%; background-image: url('${eserAvatar}'); background-size: cover; background-position: center; cursor: pointer;"></div>` :
-                        `<div onclick="window.location.href='profil.html?kisi=${encodeURIComponent(eserYazari)}'" style="width: 32px; height: 32px; border-radius: 50%; background: #a65b32; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; cursor: pointer;">${yazarHarf}</div>`;
-
-                    let gorselHTML = eser.gorsel ? 
-                        `<div style="width: 100%; background: #f0ebe1; border-radius: 6px; overflow: hidden; border: 1px solid #bfa487; margin-top: 8px;"><img src="${eser.gorsel}" style="width: 100%; display: block;"></div>` : "";
-
-                    let yorumlarHTML = "";
-                    if (eser.yorumlar && eser.yorumlar.length > 0) {
-                        eser.yorumlar.forEach(y => {
-                            yorumlarHTML += `<div style="font-size: 12px; color: #7a6555; margin-bottom: 4px;"><strong>${y.yazar}:</strong> ${y.metin}</div>`;
-                        });
-                    } else {
-                        yorumlarHTML = `<p style="font-size: 12px; color: #a08c7d; font-style: italic;">Henüz yorum yapılmamış.</p>`;
-                    }
-
-                    let div = document.createElement('div');
-                    div.className = 'card gonderi-karti';
-                    div.style.cssText = "background: #faf6f0; border: 1.5px solid #bfa487; border-radius: 8px; padding: 12px; margin-bottom: 15px;";
-                    div.innerHTML = `
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                ${profilFotoHTML}
-                                <span onclick="window.location.href='profil.html?kisi=${encodeURIComponent(eserYazari)}'" style="font-size: 13px; font-weight: bold; color: #2c221e; cursor: pointer;">${eserYazari}</span>
-                            </div>
-                        </div>
-                        ${gorselHTML}
-                        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 10px; border-bottom: 1px solid #eae0d0; padding-bottom: 6px;">
-                            <div style="display: flex; align-items: center; gap: 15px;">
-                                <div style="display: flex; align-items: center; gap: 4px;">
-                                    <span style="cursor: pointer; font-size: 18px;" onclick="anasayfaBegeniDegistir(this, '${eser.id}')">${begenildiMi ? '❤️' : '🤍'}</span>
-                                    <strong class="begeni-sayisi" style="font-size: 12px; color: #2c221e;">${begenenler.length}</strong>
-                                </div>
-                                <div style="display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="anasayfaYorumlariAcKapat(this)">
-                                    <span style="font-size: 18px;">💬</span>
-                                    <strong style="font-size: 12px; color: #2c221e;">${eser.yorumlar ? eser.yorumlar.length : 0}</strong>
-                                </div>
-                            </div>
-                            <span style="font-size: 11px; color: #7a6555;">${eser.tarih || 'Bugün'}</span>
-                        </div>
-                        <p style="font-size: 13px; margin-top: 8px; color: #2c221e; text-align: left;">
-                            <strong>${eser.baslik || ''}</strong> ${eser.aciklama ? '- ' + eser.aciklama : ''} <span style="color: #a65b32; font-weight: bold;">#${eser.etiket || 'diğer'}</span>
-                        </p>
-                        <div class="yorum-alani" style="display: none; margin-top: 10px; border-top: 1.5px dashed #bfa487; padding-top: 6px; text-align: left;">
-                            <div class="yorumlar-listesi">${yorumlarHTML}</div>
-                            <div style="display: flex; gap: 5px; margin-top: 6px;">
-                                <input type="text" class="yorum-input" placeholder="Yorum yaz..." style="flex: 1; padding: 5px; font-size: 12px; border: 1px solid #bfa487; border-radius: 4px; font-family: 'Georgia', serif;">
-                                <button onclick="anasayfaYorumYap(this, '${eser.id}')" style="padding: 5px 10px; margin: 0; width: auto; font-size: 11px; background: #a65b32; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Paylaş</button>
-                            </div>
-                        </div>
-                    `;
-                    akisDiv.appendChild(div);
-                });
-            }
-        });
-
-        function anasayfaBegeniDegistir(element, eserId) {
-            let aktif = localStorage.getItem("sanart_kullanici");
-            if (!aktif || aktif === "Misafir") { 
-                alert("Beğenmek için giriş yapmalısın!"); 
-                return; 
-            }
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let eser = eserler.find(e => String(e.id) === String(eserId));
-            if (!eser) return;
-
-            if (!eser.begenenler) eser.begenenler = [];
-            let userIndex = eser.begenenler.indexOf(aktif);
-            let sayiElementi = element.closest('.card').querySelector('.begeni-sayisi');
-
-            if (userIndex > -1) {
-                eser.begenenler.splice(userIndex, 1);
-                element.innerText = "🤍";
-            } else {
-                eser.begenenler.push(aktif);
-                element.innerText = "❤️";
-            }
-
-            sayiElementi.innerText = eser.begenenler.length;
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
-        }
-
-        function anasayfaYorumlariAcKapat(element) {
-            var kart = element.closest('.card');
-            var yorumBolumu = kart.querySelector('.yorum-alani');
-            yorumBolumu.style.display = yorumBolumu.style.display === "none" ? "block" : "none";
-        }
-
-        function anasayfaYorumYap(buttonElement, eserId) {
-            let kullanici = localStorage.getItem("sanart_kullanici");
-            if (!kullanici || kullanici === "Misafir") {
-                alert("Yorum yapmak için giriş yapmalısın!");
-                return;
-            }
-
-            var kart = buttonElement.closest('.card');
-            var input = kart.querySelector('.yorum-input');
-            var yorumMetni = input.value.trim();
-            if (yorumMetni === "") return;
-
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let eser = eserler.find(e => String(e.id) === String(eserId));
-            if (!eser) return;
-
-            if (!eser.yorumlar) eser.yorumlar = [];
-            eser.yorumlar.push({ yazar: kullanici, metin: yorumMetni });
-
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
-            location.reload();
-        }
-    </script>
+   
 </body>
 </html>
