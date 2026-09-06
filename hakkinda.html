@@ -7,28 +7,31 @@
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="logo.jpg" type="image/jpeg">
 
-<!-- Firebase Kütüphaneleri -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+    <!-- Firebase App (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <!-- Firebase Auth (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <!-- Firebase Firestore (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-<script>
-  // Firebase Yapılandırman (Zaten index.html içinde tanımlı)
-  const firebaseConfig = {
-    apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
-    authDomain: "sanart-47b05.firebaseapp.com",
-    projectId: "sanart-47b05",
-    storageBucket: "sanart-47b05.firebasestorage.app",
-    messagingSenderId: "1054961895807",
-    appId: "1:1054961895807:web:ae15d759dc9517def5324a",
-    measurementId: "G-C40XHX8CRB"
-  };
-  // Firebase başlatma
-  if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-  }
-</script>
-    
+    <script>
+      // Firebase Yapılandırman
+      const firebaseConfig = {
+        apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
+        authDomain: "sanart-47b05.firebaseapp.com",
+        projectId: "sanart-47b05",
+        storageBucket: "sanart-47b05.firebasestorage.app",
+        messagingSenderId: "1054961895807",
+        appId: "1:1054961895807:web:ae15d759dc9517def5324a",
+        measurementId: "G-C40XHX8CRB"
+      };
+      
+      // Firebase başlatma
+      if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+      }
+      const db = firebase.firestore();
+    </script>
 </head>
 <body style="padding-bottom: 70px;">
 
@@ -39,9 +42,9 @@
             <h1>SanArt Hakkında</h1>
         </div>
         <div style="position: relative;">
-            <button onclick="menuAcKapat()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #f4ece1; padding: 0 5px;" title="Seçenekler">⋮</button>
+            <button onclick="menuAcKapat()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: #2b2824; padding: 0 5px;" title="Seçenekler">⋮</button>
             <div id="ucNoktaMenu" style="display: none; position: absolute; right: 0; top: 35px; background: #faf6f0; border: 2px solid #bfa487; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.15); width: 130px; z-index: 1000; text-align: left;">
-                <a href="hakkinda.html" style="display: block; padding: 10px; font-size: 12px; color: #2c221e; text-decoration: none; border-bottom: 1px solid #e6d7c3;">Hakkında</a>
+                <a href="hakkinda.html" style="display: block; padding: 10px; font-size: 12px; color: #2c221e; text-decoration: none; border-bottom: 1px solid #e6d7c3;">Hakkımızda</a>
                 <a href="iletisim.html" style="display: block; padding: 10px; font-size: 12px; color: #2c221e; text-decoration: none;">İletişim</a>
             </div>
         </div>
@@ -129,12 +132,12 @@
                 </div>
             </div>
 
-            <!-- Alttaki 2 Kişi (Ortalanmış şekilde) -->
+            <!-- Alttaki 2 Kişi -->
             <div style="display: flex; justify-content: center; gap: 10px;">
                 <div style="background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #e6d7c3; width: 30%; text-align: center;">
                     <img src="logo.jpg" alt="Alt Kol" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #bfa487; margin-bottom: 6px;">
                     <div style="font-weight: bold; color: #2c221e; font-size: 11px;">Ayşesude İona Ferikli</div>
-                    <div style="font-size: 9px; color: #a65b32; margin-top: 2px;">Tyatro Alt Kol Eş Başk.</div>
+                    <div style="font-size: 9px; color: #a65b32; margin-top: 2px;">Tiyatro Alt Kol Eş Başk.</div>
                 </div>
                 <div style="background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #e6d7c3; width: 30%; text-align: center;">
                     <img src="logo.jpg" alt="Alt Kol" style="width: 50px; height: 50px; border-radius: 50%; object-fit: cover; border: 2px solid #bfa487; margin-bottom: 6px;">
@@ -161,16 +164,12 @@
             </div>
         </div>
 
-        <!-- AKTİF ÜYELER (Sadece İsim Listesi) -->
+        <!-- AKTİF ÜYELER (Firestore'dan Canlı Çekilecek) -->
         <div style="background: #faf6f0; border: 2px solid #bfa487; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
             <h3 style="color: #a65b32; font-size: 15px; margin-bottom: 15px; text-align: center; text-transform: uppercase; letter-spacing: 1px;">Aktif Üyeler</h3>
             <div style="background: #fff; padding: 15px; border-radius: 8px; border: 1px solid #e6d7c3; max-height: 180px; overflow-y: auto;">
-                <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: #2c221e; line-height: 1.8; font-family: 'Georgia', serif;">
-                    <li>[Üye Adı Soyadı 1]</li>
-                    <li>[Üye Adı Soyadı 2]</li>
-                    <li>[Üye Adı Soyadı 3]</li>
-                    <li>[Üye Adı Soyadı 4]</li>
-                    <li>[Üye Adı Soyadı 5]</li>
+                <ul id="aktifUyeListesi" style="margin: 0; padding-left: 20px; font-size: 13px; color: #2c221e; line-height: 1.8; font-family: 'Georgia', serif;">
+                    <li>Yükleniyor...</li>
                 </ul>
             </div>
         </div>
@@ -178,15 +177,45 @@
     </div>
 
     <script>
-        window.onload = function() {
-            let aktifKullanici = localStorage.getItem("sanart_kullanici");
+        // Firebase Auth ve Aktif Kullanıcı / Profil Bilgisi Yönetimi
+        firebase.auth().onAuthStateChanged((user) => {
             let profilMetin = document.getElementById('altMenuProfilMetin');
             let profilHarf = document.getElementById('altMenuAvatarHarf');
-            if (aktifKullanici && aktifKullanici !== "Misafir") {
-                if(profilMetin) profilMetin.innerText = aktifKullanici;
-                if(profilHarf) profilHarf.innerText = aktifKullanici.charAt(0).toUpperCase();
+            
+            if (user) {
+                let kullaniciAdi = user.displayName || user.email.split('@')[0];
+                if(profilMetin) profilMetin.innerText = kullaniciAdi;
+                if(profilHarf) profilHarf.innerText = kullaniciAdi.charAt(0).toUpperCase();
+            } else {
+                let yerelKullanici = localStorage.getItem("sanart_kullanici");
+                if (yerelKullanici && yerelKullanici !== "Misafir") {
+                    if(profilMetin) profilMetin.innerText = yerelKullanici;
+                    if(profilHarf) profilHarf.innerText = yerelKullanici.charAt(0).toUpperCase();
+                }
             }
-        };
+        });
+
+        // Firestore'dan Aktif Üyeleri Canlı Çekme
+        db.collection("sanart_kullanicilar").onSnapshot((snapshot) => {
+            let listeElementi = document.getElementById('aktifUyeListesi');
+            listeElementi.innerHTML = "";
+
+            if (snapshot.empty) {
+                listeElementi.innerHTML = "<li>Henüz kayıtlı aktif üye bulunmuyor.</li>";
+                return;
+            }
+
+            snapshot.forEach((doc) => {
+                let veri = doc.data();
+                let uyeAdi = veri.ad || veri.kullaniciAdi || "İsimsiz Üye";
+                let li = document.createElement('li');
+                li.innerText = uyeAdi;
+                listeElementi.appendChild(li);
+            });
+        }, (error) => {
+            console.error("Üyeler yüklenirken hata oluştu: ", error);
+            document.getElementById('aktifUyeListesi').innerHTML = "<li>Üyeler yüklenemedi.</li>";
+        });
 
         function menuAcKapat() {
             var menu = document.getElementById('ucNoktaMenu');
