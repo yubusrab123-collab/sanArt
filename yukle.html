@@ -7,13 +7,13 @@
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="logo.jpg" type="image/jpeg">
 
-<!-- Firebase Kütüphaneleri -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+<!-- Firebase Modül Kütüphaneleri (CDN) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import { getFirestore, collection, doc, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-<script>
-  // Firebase Yapılandırman (Zaten index.html içinde tanımlı)
+  // Firebase Yapılandırması
   const firebaseConfig = {
     apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
     authDomain: "sanart-47b05.firebaseapp.com",
@@ -23,12 +23,49 @@
     appId: "1:1054961895807:web:ae15d759dc9517def5324a",
     measurementId: "G-C40XHX8CRB"
   };
+  
   // Firebase başlatma
-  if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-  }
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Global fonksiyonlar için window nesnesine aktarıyoruz
+  window.auth = auth;
+  window.db = db;
+  window.onAuthStateChanged = onAuthStateChanged;
+  window.collection = collection;
+  window.doc = doc;
+  window.getDoc = getDoc;
+  window.addDoc = addDoc;
+  window.serverTimestamp = serverTimestamp;
+
+  // Sayfa yüklendiğinde oturum açan kullanıcıyı kontrol et
+  window.onload = function() {
+      onAuthStateChanged(auth, async (user) => {
+          let profilMetin = document.getElementById('altMenuProfilMetin');
+          let profilHarf = document.getElementById('altMenuAvatarHarf');
+
+          if (user) {
+              window.aktifKullaniciEmail = user.email;
+              let userDoc = await getDoc(doc(db, "users", user.uid));
+              if (userDoc.exists()) {
+                  window.aktifKullaniciAdi = userDoc.data().kullaniciAdi;
+              } else {
+                  window.aktifKullaniciAdi = user.email.split('@')[0];
+              }
+
+              if(profilMetin) profilMetin.innerText = window.aktifKullaniciAdi;
+              if(profilHarf) profilHarf.innerText = window.aktifKullaniciAdi.charAt(0).toUpperCase();
+          } else {
+              window.aktifKullaniciAdi = null;
+              // Giriş yapılmadıysa profil sayfasına yönlendir
+              alert("Eser paylaşmak için önce giriş yapmalısınız!");
+              window.location.href = "profil.html";
+          }
+      });
+  };
 </script>
-    
+
 </head>
 <body style="padding-bottom: 70px;">
 
@@ -92,25 +129,14 @@
     </div>
 
     <script>
-        window.onload = function() {
-            let aktifKullanici = localStorage.getItem("sanart_kullanici");
-            let profilMetin = document.getElementById('altMenuProfilMetin');
-            let profilHarf = document.getElementById('altMenuAvatarHarf');
-            if (aktifKullanici && aktifKullanici !== "Misafir") {
-                if(profilMetin) profilMetin.innerText = aktifKullanici;
-                if(profilHarf) profilHarf.innerText = aktifKullanici.charAt(0).toUpperCase();
-            }
-        };
-
         function ustMenuAcKapat() {
             var m = document.getElementById('ustUcNoktaMenu');
             m.style.display = m.style.display === 'block' ? 'none' : 'block';
         }
 
         function eserPaylasIslemi() {
-            let aktifKullanici = localStorage.getItem("sanart_kullanici");
-            if (!aktifKullanici || aktifKullanici === "Misafir") {
-                alert("Misafir hesaplar eser paylaşamaz! Lütfen önce giriş yap.");
+            if (!window.aktifKullaniciAdi) {
+                alert("Oturum açılmadı! Lütfen önce giriş yapın.");
                 window.location.href = "profil.html";
                 return;
             }
@@ -135,9 +161,9 @@
             reader.onload = function(e) {
                 let img = new Image();
                 img.src = e.target.result;
-                img.onload = function() {
+                img.onload = async function() {
                     let canvas = document.createElement('canvas');
-                    let maxBoyut = 400; // Hafıza hatasını %100 engelleyen güvenli boyut
+                    let maxBoyut = 400; // Güvenli boyut sınırı
                     let genislik = img.width;
                     let yukseklik = img.height;
 
@@ -158,36 +184,25 @@
                     let ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, genislik, yukseklik);
 
-                    let sıkıstırilmisGorsel = canvas.toDataURL('image/jpeg', 0.7);
+                    let sikistirilmisGorsel = canvas.toDataURL('image/jpeg', 0.7);
 
-                    let yeniEser = {
-                        id: Date.now(),
-                        yazar: aktifKullanici,
-                        baslik: baslik,
-                        aciklama: aciklama,
-                        etiket: etiket,
-                        gorsel: sıkıstırilmisGorsel,
-                        tarih: new Date().toLocaleDateString('tr-TR') + " " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                        begenenler: [],
-                        yorumlar: []
-                    };
+                    try {
+                        // Firestore'a yeni eseri kaydetme
+                        await window.addDoc(window.collection(window.db, "eserler"), {
+                            yazar: window.aktifKullaniciAdi,
+                            baslik: baslik,
+                            aciklama: aciklama,
+                            etiket: etiket,
+                            gorsel: sikistirilmisGorsel,
+                            tarih: new Date().toLocaleDateString('tr-TR') + " " + new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                            begenenler: []
+                        });
 
-                    let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-                    eserler.push(yeniEser);
-
-                    // Hafıza sınırına takılmamak için döngüsel kayıt denemesi (Eğer doluysa en eski eseri silip tekrar dener)
-                    while (eserler.length > 0) {
-                        try {
-                            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
-                            alert("Eseriniz başarıyla paylaşıldı ve keşfete eklendi!");
-                            window.location.href = "kesfet.html";
-                            return;
-                        } catch (err) {
-                            // Yer açmak için listedeki en eski eseri çıkar
-                            eserler.shift();
-                        }
+                        alert("Eseriniz başarıyla paylaşıldı ve keşfete eklendi!");
+                        window.location.href = "kesfet.html";
+                    } catch (err) {
+                        alert("Eser paylaşılırken bir hata oluştu: " + err.message);
                     }
-                    alert("Depolama alanı kritik seviyede dolu. Lütfen tarayıcı önbelleğini temizleyin.");
                 };
             }
             reader.readAsDataURL(dosya);
