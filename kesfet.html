@@ -7,28 +7,30 @@
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="logo.jpg" type="image/jpeg">
 
-<!-- Firebase Kütüphaneleri -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
+    <!-- Firebase App (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <!-- Firebase Auth (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <!-- Firebase Firestore (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
 
-<script>
-  // Firebase Yapılandırman (Zaten index.html içinde tanımlı)
-  const firebaseConfig = {
-    apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
-    authDomain: "sanart-47b05.firebaseapp.com",
-    projectId: "sanart-47b05",
-    storageBucket: "sanart-47b05.firebasestorage.app",
-    messagingSenderId: "1054961895807",
-    appId: "1:1054961895807:web:ae15d759dc9517def5324a",
-    measurementId: "G-C40XHX8CRB"
-  };
-  // Firebase başlatma
-  if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-  }
-</script>
-    
+    <script>
+      // Firebase Yapılandırman
+      const firebaseConfig = {
+        apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
+        authDomain: "sanart-47b05.firebaseapp.com",
+        projectId: "sanart-47b05",
+        storageBucket: "sanart-47b05.firebasestorage.app",
+        messagingSenderId: "1054961895807",
+        appId: "1:1054961895807:web:ae15d759dc9517def5324a",
+        measurementId: "G-C40XHX8CRB"
+      };
+      // Firebase başlatma
+      if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+      }
+      const db = firebase.firestore();
+    </script>
 </head>
 <body style="padding-bottom: 70px;">
 
@@ -61,10 +63,10 @@
                 <button onclick="haftaninSozunuGuncelle()" style="background:#6a5444; color: white; border: none; padding: 5px 12px; font-size: 11px; border-radius: 4px; cursor: pointer; font-weight: bold;">Sözü Güncelle</button>
             </div>
         </div>
-<br><br><br>
+        <br><br><br>
         <!-- UZATILMIŞ ARAMA BARI -->
         <div style="display: flex; gap: 6px; margin-bottom: 8px; align-items: center;">
-            <input type="text" id="aramaKutusu" placeholder="" style="flex: 1; padding: 0.5px; font-family: 'Georgia', serif; border: 1.5px solid #bfa487; border-radius: 6px; font-size: 35px; background: #faf6f0; box-sizing: border-box;">
+            <input type="text" id="aramaKutusu" placeholder="" style="flex: 1; padding: 0.5px; font-family: 'Georgia', serif; border: 1.5px solid #bfa487; border-radius: 6px; font-size: 35px; background: #faf6f0; box-sizing: border-box;" oninput="gonderileriYukle()">
             <button onclick="gonderileriYukle()" style="background: #ded6c2; color: white; border: none; padding: 16px 10px; border-radius: 6px; font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;" title="Ara">🔍</button>
         </div>
 
@@ -93,7 +95,7 @@
             </div>
         </div>
 
-        <div id="gonderiListesi"></div>
+        <div id="gonderiListesi"><p style="text-align:center; color: #7a6555; font-style: italic;">Eserler yükleniyor...</p></div>
     </div>
 
     <!-- KULLANICI PROFİL DETAY MODALI -->
@@ -136,20 +138,9 @@
 
     <script>
         let seciliEtiketFiltre = 'hepsi';
+        let globalEserlerCache = [];
 
         window.onload = function() {
-            let aktifKullanici = localStorage.getItem("sanart_kullanici");
-            let profilMetin = document.getElementById('altMenuProfilMetin');
-            let profilHarf = document.getElementById('altMenuAvatarHarf');
-            if (aktifKullanici && aktifKullanici !== "Misafir") {
-                if(profilMetin) profilMetin.innerText = aktifKullanici;
-                if(profilHarf) profilHarf.innerText = aktifKullanici.charAt(0).toUpperCase();
-                
-                if(aktifKullanici === "yönetici" || aktifKullanici === "sanart") {
-                    document.getElementById('yoneticiSozPaneli').style.display = 'block';
-                }
-            }
-
             let kayitliSoz = localStorage.getItem("sanart_haftanin_sozu");
             if(kayitliSoz) {
                 document.getElementById('haftaninSozuMetin').innerText = kayitliSoz;
@@ -157,7 +148,45 @@
 
             gonderileriYukle();
         };
+// Firebase Auth ile aktif kullanıcı takibi ve Firestore'dan gerçek kullanıcı adını çekme
+firebase.auth().onAuthStateChanged(async (user) => {
+    let profilMetin = document.getElementById('altMenuProfilMetin');
+    let profilHarf = document.getElementById('altMenuAvatarHarf');
+    
+    if (user) {
+        let kAdiLocal = localStorage.getItem("sanart_kullanici");
+        let kullaniciAdi = kAdiLocal && kAdiLocal !== "Misafir" ? kAdiLocal : "Sanatçı"; // E-posta fallback'i kaldırıldı
+        
+        try {
+            let userDoc = await db.collection("users").doc(user.uid).get();
+            if (userDoc.exists && userDoc.data().kullaniciAdi) {
+                kullaniciAdi = userDoc.data().kullaniciAdi;
+            }
+        } catch (e) {
+            console.error("Kullanıcı adı çekilemedi:", e);
+        }
 
+        // Aktif kullanıcıyı global değişkenlere ve localStorage'a sabitleyelim
+        window.aktifKullaniciAdiGlobal = kullaniciAdi;
+        localStorage.setItem("sanart_kullanici", kullaniciAdi);
+
+        if(profilMetin) profilMetin.innerText = kullaniciAdi;
+        if(profilHarf) profilHarf.innerText = kullaniciAdi.charAt(0).toUpperCase();
+
+        if(kullaniciAdi === "yönetici" || kullaniciAdi === "sanart") {
+            let yoneticiSoz = document.getElementById('yoneticiSozPaneli');
+            if(yoneticiSoz) yoneticiSoz.style.display = 'block';
+        }
+    } else {
+        window.aktifKullaniciAdiGlobal = "Misafir";
+        localStorage.removeItem("sanart_kullanici");
+        if(profilMetin) profilMetin.innerText = "Profil";
+        if(profilHarf) profilHarf.innerText = "S";
+    }
+    
+    gonderileriYukle();
+});
+      
         function haftaninSozunuGuncelle() {
             let yeniSoz = document.getElementById('yeniSozInput').value.trim();
             if(!yeniSoz) {
@@ -205,17 +234,50 @@
 
             document.getElementById('etiketAcilirListe').style.display = 'none';
             document.getElementById('filtreOk').style.transform = 'rotate(0deg)';
+            gonderileriYukle();
         }
 
-        function gonderileriYukle() {
+        // FIRESTORE ENTEGRASYONLU GÖNDERİLERİ YÜKLE FONKSİYONU
+      // FIRESTORE ENTEGRASYONLU GÖNDERİLERİ YÜKLE FONKSİYONU
+        async function gonderileriYukle() {
             let listeDiv = document.getElementById('gonderiListesi');
-            let aramaMetni = document.getElementById('aramaKutusu').value.toLowerCase().trim();
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let tersEserler = [...eserler].reverse();
+            let aramaKutusuEl = document.getElementById('aramaKutusu');
+            let aramaMetni = aramaKutusuEl ? aramaKutusuEl.value.toLowerCase().trim() : "";
+            
+            globalEserlerCache = [];
+
+            try {
+                let snapshot = await db.collection("eserler").get();
+                snapshot.forEach(docSnap => {
+                    globalEserlerCache.push({ id: docSnap.id, ...docSnap.data() });
+                });
+            } catch (err) {
+                console.error("Firebase'den veriler çekilirken hata oluştu:", err);
+                listeDiv.innerHTML = `<p style="text-align:center; color: #d9534f; font-style: italic;">Eserler yüklenirken bir bağlantı hatası oluştu.</p>`;
+                return;
+            }
+
+            let eserler = globalEserlerCache;
+
+            eserler.sort((a, b) => {
+                let tA = a.tarihMs && a.tarihMs.toMillis ? a.tarihMs.toMillis() : (a.tarihMs || 0);
+                let tB = b.tarihMs && b.tarihMs.toMillis ? b.tarihMs.toMillis() : (b.tarihMs || 0);
+                
+                if (tA === 0 && a.tarih) {
+                    let parsed = Date.parse(a.tarih);
+                    if (!isNaN(parsed)) tA = parsed;
+                }
+                if (tB === 0 && b.tarih) {
+                    let parsed = Date.parse(b.tarih);
+                    if (!isNaN(parsed)) tB = parsed;
+                }
+                
+                return tB - tA;
+            });
 
             listeDiv.innerHTML = "";
 
-            let filtrelenmis = tersEserler.filter(eser => {
+            let filtrelenmis = eserler.filter(eser => {
                 let baslikUyuyor = (eser.baslik || "").toLowerCase().includes(aramaMetni);
                 let yazarUyuyor = (eser.yazar || "").toLowerCase().includes(aramaMetni);
                 let etiketUyuyor = (eser.etiket || "").toLowerCase().includes(aramaMetni);
@@ -227,19 +289,26 @@
             });
 
             if (filtrelenmis.length === 0) {
-                listeDiv.innerHTML = `<p style="text-align:center; color: #ded6c2; font-style: italic;">Aradığınız kriterlere uygun eser bulunamadı.</p>`;
+                listeDiv.innerHTML = `<p style="text-align:center; color: #7a6555; font-style: italic;">Aradığınız kriterlere uygun eser bulunamadı.</p>`;
                 return;
             }
 
-            filtrelenmis.forEach((eser) => {
-                let aktifKullanici = localStorage.getItem("sanart_kullanici") || "Misafir";
+            for (const eser of filtrelenmis) {
+                let currentUser = firebase.auth().currentUser;
+                let aktifKullanici = window.aktifKullaniciAdiGlobal || localStorage.getItem("sanart_kullanici") || (currentUser ? currentUser.displayName : "Misafir");
                 let eserYazari = eser.yazar || "Sanatçı";
                 let eserAvatar = localStorage.getItem("sanart_avatar_" + eserYazari) || "";
                 let begenenler = eser.begenenler || [];
                 let begenildiMi = begenenler.includes(aktifKullanici);
 
-                let takipEdilenler = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + aktifKullanici) || "[]");
-                let takipEdiliyorMu = takipEdilenler.includes(eserYazari);
+                let takipEdiliyorMu = false;
+                if (aktifKullanici !== "Misafir" && aktifKullanici !== eserYazari) {
+                    let kontrolSnap = await db.collection("takipler")
+                        .where("takipEden", "==", aktifKullanici)
+                        .where("takipEdilen", "==", eserYazari)
+                        .get();
+                    takipEdiliyorMu = !kontrolSnap.empty;
+                }
 
                 let kart = document.createElement('div');
                 kart.className = 'card gonderi-karti';
@@ -251,17 +320,18 @@
                     `<div onclick="kullaniciProfiliAc('${eserYazari}')" style="width: 32px; height: 32px; border-radius: 50%; background: #a65b32; color: white; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 13px; cursor: pointer;">${yazarHarf}</div>`;
 
                 let takipBtnHTML = "";
-                if (aktifKullanici !== "Misafir" && aktifKullanici !== eserYazari) {
+                if(aktifKullanici !== "Misafir" && aktifKullanici !== eserYazari) {
                     let btnText = takipEdiliyorMu ? 'Takip Ediliyor' : 'Takip Et';
                     let btnBg = takipEdiliyorMu ? '#7a6555' : '#a65b32';
-                    takipBtnHTML = `<button class="takip-btn-${eserYazari}" onclick="takipEtDegistir('${eserYazari}', this)" style="background: ${btnBg}; color: white; border: none; padding: 3px 8px; font-size: 10px; border-radius: 4px; cursor: pointer;">${btnText}</button>`;
+                    let guvenliYazar = eserYazari.replace(/['"\\]/g, '');
+                    takipBtnHTML = `<button class="takip-btn-${guvenliYazar}" onclick="takipEtDegistir('${guvenliYazar}', this)" style="background: ${btnBg}; color: white; border: none; padding: 4px 10px; font-size: 11px; border-radius: 4px; cursor: pointer; font-weight: bold;">${btnText}</button>`;
                 }
 
                 let yoneticiSilBtn = (aktifKullanici === "yönetici" || aktifKullanici === eserYazari) ? 
                     `<button onclick="yoneticiEserSil('${eser.id}')" style="background: transparent; border: none; color: #d9534f; font-size: 11px; cursor: pointer; font-weight: bold;" title="Eseri Sil">🗑️ Sil</button>` : "";
 
                 let gorselHTML = eser.gorsel ? 
-                    `<div style="width: 100%; background: #f0ebe1; border-radius: 6px; overflow: hidden; border: 1px solid #bfa487; margin-top: 8px;"><img src="${eser.gorsel}" style="width: 100%; display: block;"></div>` : "";
+                    `<div style="width: 100%; background: #f0ebe1; border-radius: 6px; overflow: hidden; border: 1px solid #bfa487; margin-top: 8px;"><img src="${eser.gorsel}" style="width: 100%; display: block;" onclick="eserDetayGoster('${eser.id}')"></div>` : "";
 
                 let yorumlarHTML = "";
                 if (eser.yorumlar && eser.yorumlar.length > 0) {
@@ -309,113 +379,120 @@
                     </div>
                 `;
                 listeDiv.appendChild(kart);
-            });
+            }
         }
 
-        function kullaniciProfiliAc(kisiAdi) {
-            document.getElementById('listeDetayModal').style.display = 'none';
-            let aktifKullanici = localStorage.getItem("sanart_kullanici") || "Misafir";
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let kullaniciEserleri = eserler.filter(e => e.yazar === kisiAdi);
+     async function kullaniciProfiliAc(kisiAdi) {
+    document.getElementById('listeDetayModal').style.display = 'none';
+    let currentUser = firebase.auth().currentUser;
+    let aktifKullanici = window.aktifKullaniciAdiGlobal || localStorage.getItem("sanart_kullanici");
+    let eserler = globalEserlerCache;
+    let kullaniciEserleri = eserler.filter(e => e.yazar === kisiAdi);
 
-            let toplamBegeni = 0;
+    let toplamBegeni = 0;
+    kullaniciEserleri.forEach(e => {
+        if(e.begenenler) toplamBegeni += e.begenenler.length;
+    });
+
+    // 3. Sorun Çözümü: Gizlilik ve avatar ayarlarını doğrudan Firestore 'users' koleksiyonundan çekiyoruz
+    let userQuery = await db.collection("users").where("kullaniciAdi", "==", kisiAdi).get();
+    let userData = !userQuery.empty ? userQuery.docs[0].data() : {};
+    let gizlilikAyarlari = userData.gizlilik || {};
+    let avatar = userData.avatar || "";
+
+    // 1 ve 2. Sorun Çözümü: Takipçi ve takip edilen sayılarını doğrudan Firestore 'takipler' koleksiyonundan hesaplıyoruz
+    let takipciSnap = await db.collection("takipler").where("takipEdilen", "==", kisiAdi).get();
+    let takipciler = [];
+    takipciSnap.forEach(doc => takipciler.push(doc.data().takipEden));
+
+    let takipEdilenSnap = await db.collection("takipler").where("takipEden", "==", kisiAdi).get();
+    let takipEdilenler = [];
+    takipEdilenSnap.forEach(doc => takipEdilenler.push(doc.data().takipEdilen));
+
+    // Aktif kullanıcının bu profili takip edip etmediğini Firestore'dan sorgula
+    let takipEdiliyorMu = false;
+    if (aktifKullanici && aktifKullanici !== "Misafir" && aktifKullanici !== kisiAdi) {
+        let kontrolSnap = await db.collection("takipler")
+            .where("takipEden", "==", aktifKullanici)
+            .where("takipEdilen", "==", kisiAdi)
+            .get();
+        takipEdiliyorMu = !kontrolSnap.empty;
+    }
+
+    let modalIcerik = document.getElementById('profilModalIcerik');
+    let avatarHTML = avatar ?
+        `<div style="width: 60px; height: 60px; border-radius: 50%; background-image: url('${avatar}'); background-size: cover; background-position: center; margin: 0 auto 8px auto;"></div>` :
+        `<div style="width: 60px; height: 60px; border-radius: 50%; background: #a65b32; color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; margin: 0 auto 8px auto;">${kisiAdi.charAt(0).toUpperCase()}</div>`;
+
+    let takipBtnModal = "";
+    if(aktifKullanici !== "Misafir" && aktifKullanici !== kisiAdi) {
+        let btnText = takipEdiliyorMu ? 'Takip Ediliyor' : 'Takip Et';
+        let btnBg = takipEdiliyorMu ? '#7a6555' : '#a65b32';
+        let guvenliKisiAdi = kisiAdi.replace(/['"\\]/g, '');
+        takipBtnModal = `<button class="takip-btn-${guvenliKisiAdi}" onclick="takipEtDegistir('${guvenliKisiAdi}', this)" style="background: ${btnBg}; color: white; border: none; padding: 6px 16px; font-size: 12px; border-radius: 6px; cursor: pointer; margin-bottom: 12px; font-weight: bold; display: block; margin-left: auto; margin-right: auto;">${btnText}</button>`;
+    }
+
+    // Gizlilik ayarlarına göre istatistik kutularını gizleme
+    let istatistikHTML = `<div style="display: flex; justify-content: space-around; background: #f0ebe1; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #bfa487; font-size: 12px;">`;
+    
+    if (!gizlilikAyarlari.eser) {
+        istatistikHTML += `<div><strong>${kullaniciEserleri.length}</strong><br><span style="font-size: 10px; color: #7a6555;">Eser</span></div>`;
+    }
+    if (!gizlilikAyarlari.begeni) {
+        istatistikHTML += `<div><strong>${toplamBegeni}</strong><br><span style="font-size: 10px; color: #7a6555;">Beğeni</span></div>`;
+    }
+    if (!gizlilikAyarlari.takipci) {
+        let takipciJsonStr = JSON.stringify(takipciler).replace(/"/g, '&quot;');
+        istatistikHTML += `<div onclick='listeGoster("Takipçiler", ${takipciJsonStr}, ${gizlilikAyarlari.takipci || false})' style="cursor: pointer;"><strong>${takipciler.length}</strong><br><span style="font-size: 10px; color: #a65b32; text-decoration: underline;">Takipçi</span></div>`;
+    }
+    if (!gizlilikAyarlari.takip) {
+        let takipEdilenJsonStr = JSON.stringify(takipEdilenler).replace(/"/g, '&quot;');
+        istatistikHTML += `<div onclick='listeGoster("Takip Edilenler", ${takipEdilenJsonStr}, ${gizlilikAyarlari.takip || false})' style="cursor: pointer;"><strong>${takipEdilenler.length}</strong><br><span style="font-size: 10px; color: #a65b32; text-decoration: underline;">Takip</span></div>`;
+    }
+    istatistikHTML += `</div>`;
+
+    let eserlerGridHTML = "";
+    if(!gizlilikAyarlari.eser) {
+        if(kullaniciEserleri.length > 0) {
             kullaniciEserleri.forEach(e => {
-                if(e.begenenler) toplamBegeni += e.begenenler.length;
-            });
-
-            let takipciler = [];
-            let tumKullanicilar = [kisiAdi];
-            eserler.forEach(e => { if(e.yazar && !tumKullanicilar.includes(e.yazar)) tumKullanicilar.push(e.yazar); });
-            
-            for(let i=0; i<localStorage.length; i++) {
-                let keyName = localStorage.key(i);
-                if(keyName.startsWith("sanart_takip_edilenler_")) {
-                    let kAdi = keyName.replace("sanart_takip_edilenler_", "");
-                    if(!tumKullanicilar.includes(kAdi)) tumKullanicilar.push(kAdi);
-                }
-            }
-
-            tumKullanicilar.forEach(k => {
-                let kTakipEdilen = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + k) || "[]");
-                if(kTakipEdilen.includes(kisiAdi)) {
-                    if(!takipciler.includes(k)) takipciler.push(k);
+                if(e.gorsel) {
+                    eserlerGridHTML += `<img src="${e.gorsel}" onclick="eserDetayGoster('${e.id}')" style="width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #bfa487; cursor: pointer;">`;
                 }
             });
-
-            let takipEdilenler = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + kisiAdi) || "[]");
-            let avatar = localStorage.getItem("sanart_avatar_" + kisiAdi) || "";
-            let gizlilikAyarlari = JSON.parse(localStorage.getItem("sanart_gizlilik_" + kisiAdi) || "{}");
-            
-            let modalIcerik = document.getElementById('profilModalIcerik');
-            let avatarHTML = avatar && avatar.startsWith('data:image') ?
-                `<div style="width: 60px; height: 60px; border-radius: 50%; background-image: url('${avatar}'); background-size: cover; background-position: center; margin: 0 auto 8px auto;"></div>` :
-                `<div style="width: 60px; height: 60px; border-radius: 50%; background: #a65b32; color: white; display: flex; align-items: center; justify-content: center; font-size: 22px; font-weight: bold; margin: 0 auto 8px auto;">${kisiAdi.charAt(0).toUpperCase()}</div>`;
-
-            let takipBtnModal = "";
-            if(aktifKullanici !== "Misafir" && aktifKullanici !== kisiAdi) {
-                let takipEdiliyorMu = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + aktifKullanici) || "[]").includes(kisiAdi);
-                let btnText = takipEdiliyorMu ? 'Takip Ediliyor' : 'Takip Et';
-                let btnBg = takipEdiliyorMu ? '#7a6555' : '#a65b32';
-                takipBtnModal = `<button class="takip-btn-${kisiAdi}" onclick="takipEtDegistir('${kisiAdi}', this); setTimeout(() => kullaniciProfiliAc('${kisiAdi}'), 50);" style="background: ${btnBg}; color: white; border: none; padding: 6px 16px; font-size: 12px; border-radius: 6px; cursor: pointer; margin-bottom: 12px; font-weight: bold; display: block; margin-left: auto; margin-right: auto;">${btnText}</button>`;
-            }
-
-            let istatistikHTML = `<div style="display: flex; justify-content: space-around; background: #f0ebe1; padding: 8px; border-radius: 6px; margin-bottom: 12px; border: 1px solid #bfa487; font-size: 12px;">`;
-            
-            if (!gizlilikAyarlari.eser) {
-                istatistikHTML += `<div><strong>${kullaniciEserleri.length}</strong><br><span style="font-size: 10px; color: #7a6555;">Eser</span></div>`;
-            }
-            if (!gizlilikAyarlari.begeni) {
-                istatistikHTML += `<div><strong>${toplamBegeni}</strong><br><span style="font-size: 10px; color: #7a6555;">Beğeni</span></div>`;
-            }
-            if (!gizlilikAyarlari.takipci) {
-                istatistikHTML += `<div onclick="listeGoster('Takipçiler', ${JSON.stringify(takipciler)}, ${gizlilikAyarlari.takipciGizli || false})" style="cursor: pointer;"><strong>${takipciler.length}</strong><br><span style="font-size: 10px; color: #a65b32; text-decoration: underline;">Takipçi</span></div>`;
-            }
-            if (!gizlilikAyarlari.takip) {
-                istatistikHTML += `<div onclick="listeGoster('Takip Edilenler', ${JSON.stringify(takipEdilenler)}, ${gizlilikAyarlari.takipGizli || false})" style="cursor: pointer;"><strong>${takipEdilenler.length}</strong><br><span style="font-size: 10px; color: #a65b32; text-decoration: underline;">Takip</span></div>`;
-            }
-            istatistikHTML += `</div>`;
-
-            let eserlerGridHTML = "";
-            if(!gizlilikAyarlari.eser) {
-                if(kullaniciEserleri.length > 0) {
-                    kullaniciEserleri.forEach(e => {
-                        if(e.gorsel) {
-                            eserlerGridHTML += `<img src="${e.gorsel}" onclick="eserDetayGoster('${e.id}')" style="width: 100%; height: 80px; object-fit: cover; border-radius: 4px; border: 1px solid #bfa487; cursor: pointer;">`;
-                        }
-                    });
-                } else {
-                    eserlerGridHTML = `<p style="grid-column: span 3; font-size: 11px; color: #7a6555; font-style: italic; text-align: center;">Henüz eser paylaşmamış.</p>`;
-                }
-            } else {
-                eserlerGridHTML = `<p style="grid-column: span 3; font-size: 11px; color: #7a6555; font-style: italic; text-align: center;">Bu kullanıcının eserleri gizli.</p>`;
-            }
-
-            modalIcerik.innerHTML = `
-                <div style="text-align: center;">
-                    ${avatarHTML}
-                    <h3 style="color: #2c221e; margin-bottom: 4px; font-size: 15px;">${kisiAdi}</h3>
-                    ${takipBtnModal}
-                    ${istatistikHTML}
-                    <h4 style="font-size: 12px; color: #2b2201; margin-bottom: 6px; text-align: left;">Paylaştığı Eserler:</h4>
-                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 180px; overflow-y: auto;">
-                        ${eserlerGridHTML}
-                    </div>
-                </div>
-            `;
-
-            document.getElementById('profilDetayModal').style.display = 'flex';
+        } else {
+            eserlerGridHTML = `<p style="grid-column: span 3; font-size: 11px; color: #7a6555; font-style: italic; text-align: center;">Henüz eser paylaşmamış.</p>`;
         }
+    } else {
+        eserlerGridHTML = `<p style="grid-column: span 3; font-size: 11px; color: #7a6555; font-style: italic; text-align: center;">Bu kullanıcının eserleri gizli.</p>`;
+    }
+
+    modalIcerik.innerHTML = `
+        <div style="text-align: center;">
+            ${avatarHTML}
+            <h3 style="color: #2c221e; margin-bottom: 4px; font-size: 15px;">${kisiAdi}</h3>
+            ${takipBtnModal}
+            ${istatistikHTML}
+            <h4 style="font-size: 12px; color: #2b2201; margin-bottom: 6px; text-align: left;">Paylaştığı Eserler:</h4>
+            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-height: 180px; overflow-y: auto;">
+                ${eserlerGridHTML}
+            </div>
+        </div>
+    `;
+
+    document.getElementById('profilDetayModal').style.display = 'flex';
+}
 
         function profilModaliniKapat() {
             document.getElementById('profilDetayModal').style.display = 'none';
         }
 
         function eserDetayGoster(eserId) {
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+            let eserler = globalEserlerCache;
             let eser = eserler.find(e => String(e.id) === String(eserId));
             if(!eser) return;
 
-            let aktifKullanici = localStorage.getItem("sanart_kullanici") || "Misafir";
+            let currentUser = firebase.auth().currentUser;
+            let aktifKullanici = currentUser ? (currentUser.displayName || currentUser.email.split('@')[0]) : (localStorage.getItem("sanart_kullanici") || "Misafir");
             let begenenler = eser.begenenler || [];
             let begenildiMi = begenenler.includes(aktifKullanici);
 
@@ -463,13 +540,14 @@
             document.getElementById('eserDetayModal').style.display = 'flex';
         }
 
-        function begeniDegistirModal(element, eserId) {
-            let kullanici = localStorage.getItem("sanart_kullanici");
+        async function begeniDegistirModal(element, eserId) {
+            let currentUser = firebase.auth().currentUser;
+            let kullanici = currentUser ? (currentUser.displayName || currentUser.email.split('@')[0]) : localStorage.getItem("sanart_kullanici");
             if (!kullanici || kullanici === "Misafir") {
                 document.getElementById('girisModal').style.display = 'flex';
                 return;
             }
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+            let eserler = globalEserlerCache;
             let eser = eserler.find(e => String(e.id) === String(eserId));
             if (!eser) return;
 
@@ -485,12 +563,16 @@
                 element.innerText = "❤️";
             }
             sayiElementi.innerText = eser.begenenler.length;
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+            
+            try {
+                await db.collection("eserler").doc(eserId).update({ begenenler: eser.begenenler });
+            } catch(e) { console.error(e); }
             gonderileriYukle();
         }
 
-        function modalYorumYap(eserId) {
-            let kullanici = localStorage.getItem("sanart_kullanici");
+        async function modalYorumYap(eserId) {
+            let currentUser = firebase.auth().currentUser;
+            let kullanici = currentUser ? (currentUser.displayName || currentUser.email.split('@')[0]) : localStorage.getItem("sanart_kullanici");
             if (!kullanici || kullanici === "Misafir") {
                 document.getElementById('girisModal').style.display = 'flex';
                 return;
@@ -499,13 +581,17 @@
             let metin = input.value.trim();
             if(!metin) return;
 
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+            let eserler = globalEserlerCache;
             let eser = eserler.find(e => String(e.id) === String(eserId));
             if(!eser) return;
 
             if(!eser.yorumlar) eser.yorumlar = [];
             eser.yorumlar.push({ yazar: kullanici, metin: metin });
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+            
+            try {
+                await db.collection("eserler").doc(eserId).update({ yorumlar: eser.yorumlar });
+            } catch(e) { console.error(e); }
+
             eserDetayGoster(eserId);
             gonderileriYukle();
         }
@@ -528,48 +614,69 @@
             document.getElementById('listeDetayModal').style.display = 'flex';
         }
 
-        function takipEtDegistir(sanatciAdi, btnElement) {
-            let aktifKullanici = localStorage.getItem("sanart_kullanici");
-            if (!aktifKullanici || aktifKullanici === "Misafir") {
-                document.getElementById('girisModal').style.display = 'flex';
-                return;
-            }
+        async function takipEtDegistir(sanatciAdi, btnElement) {
+    let currentUser = firebase.auth().currentUser;
+    let aktifKullanici = window.aktifKullaniciAdiGlobal || localStorage.getItem("sanart_kullanici");
+    if (!aktifKullanici || aktifKullanici === "Misafir") {
+        document.getElementById('girisModal').style.display = 'flex';
+        return;
+    }
 
-            let key = "sanart_takip_edilenler_" + aktifKullanici;
-            let takipEdilenler = JSON.parse(localStorage.getItem(key) || "[]");
-            let index = takipEdilenler.indexOf(sanatciAdi);
+    try {
+        let takipRef = db.collection("takipler");
+        // Firestore'da bu takip ilişkisi var mı kontrol et
+        let kontrolSnap = await takipRef
+            .where("takipEden", "==", aktifKullanici)
+            .where("takipEdilen", "==", sanatciAdi)
+            .get();
 
-            let yeniDurum = false;
-            if (index > -1) {
-                takipEdilenler.splice(index, 1);
-                yeniDurum = false;
-            } else {
-                takipEdilenler.push(sanatciAdi);
-                yeniDurum = true;
-            }
-
-            localStorage.setItem(key, JSON.stringify(takipEdilenler));
-
-            let ilgiliButonlar = document.querySelectorAll('.takip-btn-' + CSS.escape(sanatciAdi));
-            ilgiliButonlar.forEach(btn => {
-                btn.innerText = yeniDurum ? "Takip Ediliyor" : "Takip Et";
-                btn.style.background = yeniDurum ? "#7a6555" : "#a65b32";
+        let yeniDurum = false;
+        if (!kontrolSnap.empty) {
+            // İlişki varsa sil (Takipten çık)
+            let docId = kontrolSnap.docs[0].id;
+            await takipRef.doc(docId).delete();
+            yeniDurum = false;
+        } else {
+            // İlişki yoksa ekle (Takip et)
+            await takipRef.add({
+                takipEden: aktifKullanici,
+                takipEdilen: sanatciAdi,
+                tarih: firebase.firestore.FieldValue.serverTimestamp()
             });
-
-            if(btnElement) {
-                btnElement.innerText = yeniDurum ? "Takip Ediliyor" : "Takip Et";
-                btnElement.style.background = yeniDurum ? "#7a6555" : "#a65b32";
-            }
+            yeniDurum = true;
         }
 
-        function begeniDegistir(element, eserId) {
-            let kullanici = localStorage.getItem("sanart_kullanici");
+        // Sayfadaki tüm ilgili takip butonlarını anında güncelle
+        let ilgiliButonlar = document.querySelectorAll('.takip-btn-' + CSS.escape(sanatciAdi));
+        ilgiliButonlar.forEach(btn => {
+            btn.innerText = yeniDurum ? "Takip Ediliyor" : "Takip Et";
+            btn.style.background = yeniDurum ? "#7a6555" : "#a65b32";
+        });
+
+       if(btnElement) {
+            btnElement.innerText = yeniDurum ? "Takip Ediliyor" : "Takip Et";
+            btnElement.style.background = yeniDurum ? "#7a6555" : "#a65b32";
+        }
+
+        // Eğer kullanıcı profil modalı açıksa, sayacın güncellenmesi için profili yeniden yükle
+        let profilModal = document.getElementById('profilDetayModal');
+        if (profilModal && profilModal.style.display === 'flex') {
+            // Hangi profilde olduğumuzu başlık veya global değişkenden bulup yeniden açabiliriz
+            // Veya doğrudan ilgili kullanıcının adını parametre olarak geçirebilirsin.
+        }
+    } catch (e) {
+        console.error("Takip işlemi hatası:", e);
+    }
+}
+        async function begeniDegistir(element, eserId) {
+            let currentUser = firebase.auth().currentUser;
+            let kullanici = currentUser ? (currentUser.displayName || currentUser.email.split('@')[0]) : localStorage.getItem("sanart_kullanici");
             if (!kullanici || kullanici === "Misafir") {
                 document.getElementById('girisModal').style.display = 'flex';
                 return;
             }
 
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+            let eserler = globalEserlerCache;
             let eser = eserler.find(e => String(e.id) === String(eserId));
             if (!eser) return;
 
@@ -586,7 +693,10 @@
             }
 
             sayiElementi.innerText = eser.begenenler.length;
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+            
+            try {
+                await db.collection("eserler").doc(eserId).update({ begenenler: eser.begenenler });
+            } catch(e) { console.error(e); }
         }
 
         function yorumlariAcKapat(element) {
@@ -595,8 +705,9 @@
             yorumBolumu.style.display = yorumBolumu.style.display === "none" ? "block" : "none";
         }
 
-        function yorumYap(buttonElement, eserId) {
-            let kullanici = localStorage.getItem("sanart_kullanici");
+        async function yorumYap(buttonElement, eserId) {
+            let currentUser = firebase.auth().currentUser;
+            let kullanici = currentUser ? (currentUser.displayName || currentUser.email.split('@')[0]) : localStorage.getItem("sanart_kullanici");
             if (!kullanici || kullanici === "Misafir") {
                 document.getElementById('girisModal').style.display = 'flex';
                 return;
@@ -607,22 +718,25 @@
             var yorumMetni = input.value.trim();
             if (yorumMetni === "") return;
 
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
+            let eserler = globalEserlerCache;
             let eser = eserler.find(e => String(e.id) === String(eserId));
             if (!eser) return;
 
             if (!eser.yorumlar) eser.yorumlar = [];
             eser.yorumlar.push({ yazar: kullanici, metin: yorumMetni });
 
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+            try {
+                await db.collection("eserler").doc(eserId).update({ yorumlar: eser.yorumlar });
+            } catch(e) { console.error(e); }
+
             gonderileriYukle();
         }
 
-        function yoneticiEserSil(eserId) {
+        async function yoneticiEserSil(eserId) {
             if(!confirm("Bu eseri silmek istediğine emin misin?")) return;
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let yeniListe = eserler.filter(e => String(e.id) !== String(eserId));
-            localStorage.setItem("sanart_eserler", JSON.stringify(yeniListe));
+            try {
+                await db.collection("eserler").doc(eserId).delete();
+            } catch(e) { console.error(e); }
             gonderileriYukle();
         }
     </script>
