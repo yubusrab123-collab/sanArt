@@ -1,35 +1,39 @@
 <!DOCTYPE html>
 <html lang="tr">
 <head>
-
-<!-- Firebase Kütüphaneleri -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
-
-<script>
-  // Firebase Yapılandırman (Zaten index.html içinde tanımlı)
-  const firebaseConfig = {
-    apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
-    authDomain: "sanart-47b05.firebaseapp.com",
-    projectId: "sanart-47b05",
-    storageBucket: "sanart-47b05.firebasestorage.app",
-    messagingSenderId: "1054961895807",
-    appId: "1:1054961895807:web:ae15d759dc9517def5324a",
-    measurementId: "G-C40XHX8CRB"
-  };
-  // Firebase başlatma
-  if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-  }
-</script>
-    
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>SanArt - Ortak Tuval</title>
+
+    <!-- Firebase App (Compat Sürümü - Global 'firebase' nesnesi için şarttır) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <!-- Firebase Auth (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
+    <!-- Firebase Firestore (Compat Sürümü) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+    <script>
+      // Firebase Yapılandırman
+      const firebaseConfig = {
+        apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
+        authDomain: "sanart-47b05.firebaseapp.com",
+        projectId: "sanart-47b05",
+        storageBucket: "sanart-47b05.firebasestorage.app",
+        messagingSenderId: "1054961895807",
+        appId: "1:1054961895807:web:ae15d759dc9517def5324a",
+        measurementId: "G-C40XHX8CRB"
+      };
+      
+      // Firebase başlatma
+      if (!firebase.apps.length) {
+          firebase.initializeApp(firebaseConfig);
+      }
+      const db = firebase.firestore();
+    </script>
+
     <style>
         body {
-            background-color:  #ded6c2 ;
+            background-color: #ded6c2;
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             margin: 0;
             padding: 10px;
@@ -37,13 +41,13 @@
             text-align: center;
             overflow-x: hidden;
         }
-        h2 { color:  #ded6c2 ; margin-bottom: 5px; font-size: 18px; }
-        p { font-size: 12px; color: #ded6c2; margin-bottom: 10px; }
+        h2 { color: #2c221e; margin-bottom: 5px; font-size: 18px; }
+        p { font-size: 12px; color: #5a4a42; margin-bottom: 10px; }
         
         .container {
             max-width: 650px;
             margin: 0 auto;
-            background: #2b2201 ;
+            background: #2b2201;
             border: 1px solid #ded6c2;
             border-radius: 10px;
             padding: 10px;
@@ -186,7 +190,27 @@
         const satirSutunSayisi = 60;
         const toplamPiksel = satirSutunSayisi * satirSutunSayisi;
 
-        var kaydedilenKullanici = localStorage.getItem("sanart_kullanici");
+        let aktifKullanici = null;
+
+        // Firebase Auth ile aktif kullanıcıyı al
+        firebase.auth().onAuthStateChanged((user) => {
+            if (user) {
+                aktifKullanici = user.displayName || user.email.split('@')[0];
+                yoneticiKontrol(aktifKullanici);
+            } else {
+                aktifKullanici = localStorage.getItem("sanart_kullanici");
+                if (aktifKullanici) {
+                    yoneticiKontrol(aktifKullanici);
+                }
+            }
+        });
+
+        function yoneticiKontrol(kullaniciAdi) {
+            var yoneticiler = ["admin", "baskan", "yonetici", "sanart"];
+            if (kullaniciAdi && yoneticiler.some(y => kullaniciAdi.toLowerCase().includes(y))) {
+                document.getElementById('sifirlaBtn').style.display = "inline-block";
+            }
+        }
 
         // Renk paleti oluşturma
         const paletDiv = document.getElementById('renkPaleti');
@@ -202,20 +226,15 @@
             paletDiv.appendChild(kutu);
         });
 
-        // Tuval piksellerini oluşturma
+        // Tuval piksellerini oluşturma ve haritalama
         const tuvalDiv = document.getElementById('tuvalAlani');
-        let kaydedilenPikseller = JSON.parse(localStorage.getItem("sanart_ortak_tuval_detay_60") || "{}");
+        const pikselElementleri = [];
 
         for (let i = 0; i < toplamPiksel; i++) {
             let piksel = document.createElement('div');
             piksel.className = 'piksel';
-            
-            if (kaydedilenPikseller[i]) {
-                piksel.style.backgroundColor = kaydedilenPikseller[i].renk;
-                piksel.title = "Boyayan: " + kaydedilenPikseller[i].kullanici;
-            } else {
-                piksel.title = "Boş Piksel";
-            }
+            piksel.style.backgroundColor = "#ffffff";
+            piksel.title = "Boş Piksel";
 
             let tiklandiMi = false;
             piksel.onmousedown = () => { tiklandiMi = true; };
@@ -223,29 +242,45 @@
             piksel.onmouseup = function() {
                 if (!tiklandiMi) return;
                 
-                if (!kaydedilenKullanici) {
-                    alert("Tuvale renk koyabilmek için önce profil kısmından giriş yapmalısın!");
+                if (!aktifKullanici) {
+                    alert("Tuvale renk koyabilmek için önce giriş yapmalısın!");
                     return;
                 }
 
-                piksel.style.backgroundColor = secilenRenk;
-                piksel.title = "Boyayan: " + kaydedilenKullanici;
-
-                kaydedilenPikseller[i] = {
+                // Firestore'a piksel verisini kaydet
+                db.collection("sanart_tuval").doc(i.toString()).set({
                     renk: secilenRenk,
-                    kullanici: kaydedilenKullanici
-                };
-                
-                localStorage.setItem("sanart_ortak_tuval_detay_60", JSON.stringify(kaydedilenPikseller));
+                    kullanici: aktifKullanici,
+                    zaman: firebase.firestore.FieldValue.serverTimestamp()
+                }).catch((error) => {
+                    console.error("Piksel kaydedilemedi: ", error);
+                });
             };
 
             tuvalDiv.appendChild(piksel);
+            pikselElementleri[i] = piksel;
         }
+
+        // Firestore'dan pikselleri canlı (real-time) dinle
+        db.collection("sanart_tuval").onSnapshot((snapshot) => {
+            snapshot.docChanges().forEach((change) => {
+                let index = parseInt(change.doc.id);
+                let veri = change.doc.data();
+
+                if (pikselElementleri[index]) {
+                    if (change.type === "added" || change.type === "modified") {
+                        pikselElementleri[index].style.backgroundColor = veri.renk;
+                        pikselElementleri[index].title = "Boyayan: " + (veri.kullanici || "Bilinmiyor");
+                    } else if (change.type === "removed") {
+                        pikselElementleri[index].style.backgroundColor = "#ffffff";
+                        pikselElementleri[index].title = "Boş Piksel";
+                    }
+                }
+            });
+        });
 
         // --- ZOOM VE PAN KONTROLLERİ ---
         const kapsayici = document.getElementById('disKapsayici');
-        
-        // Kapsayıcı alanın genişliğine göre başlangıç zoom oranını otomatik hesapla (Tam sığması için)
         let minScale = kapsayici.clientWidth / 1200;
         let scale = minScale; 
         let panX = 0;
@@ -257,7 +292,6 @@
             tuvalDiv.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
         }
 
-        // Sayfa açıldığında tam sığdırılmış (en uzak) şekilde başlat
         bileseniGuncelle();
 
         function zoomYakinlastir() {
@@ -271,13 +305,12 @@
         }
 
         function zoomSifirla() {
-            scale = minScale; // Tam sığdırılmış minimum boyut
+            scale = minScale; 
             panX = 0;
             panY = 0;
             bileseniGuncelle();
         }
 
-        // Fare ile sürükleme
         kapsayici.addEventListener('mousedown', (e) => {
             isDragging = true;
             startX = e.clientX - panX;
@@ -295,7 +328,6 @@
             isDragging = false;
         });
 
-        // Fare tekerleği ile Zoom
         kapsayici.addEventListener('wheel', (e) => {
             e.preventDefault();
             const zoomHizi = 1.1;
@@ -307,14 +339,13 @@
             bileseniGuncelle();
         }, { passive: false });
 
-        // Mobil Dokunmatik Kontroller (Pinch-to-Zoom ve Sürükleme)
         let baslangicMesafe = null;
 
         kapsayici.addEventListener('touchstart', (e) => {
             if (e.touches.length === 1) {
                 isDragging = true;
-                startX = e.touches[0].clientX - panX;
-                startY = e.touches[0].clientY - panY;
+                startX = e.touches.length > 0 ? e.touches[0].clientX - panX : panX;
+                startY = e.touches.length > 0 ? e.touches[0].clientY - panY : panY;
             } else if (e.touches.length === 2) {
                 isDragging = false;
                 baslangicMesafe = Math.hypot(
@@ -346,16 +377,21 @@
             baslangicMesafe = null;
         });
 
-        // Yönetici paneli kontrolü
-        var yoneticiler = ["admin", "baskan", "yonetici", "sanart"];
-        if (kaydedilenKullanici && yoneticiler.some(y => kaydedilenKullanici.toLowerCase().includes(y))) {
-            document.getElementById('sifirlaBtn').style.display = "inline-block";
-        }
-
+        // Yönetici için tuval sıfırlama fonksiyonu
         function tuvaliSifirla() {
-            if (confirm("Tuvali tamamen sıfırlamak istediğine emin misin?")) {
-                localStorage.removeItem("sanart_ortak_tuval_detay_60");
-                location.reload();
+            if (confirm("Tuvali tamamen sıfırlamak istediğine emin misin? Bu işlem buluttaki tüm pikselleri silecek.")) {
+                db.collection("sanart_tuval").get().then((querySnapshot) => {
+                    let batch = db.batch();
+                    querySnapshot.forEach((doc) => {
+                        batch.delete(doc.ref);
+                    });
+                    return batch.commit();
+                }).then(() => {
+                    alert("Tuval başarıyla sıfırlandı!");
+                    location.reload();
+                }).catch((error) => {
+                    console.error("Sıfırlama hatası: ", error);
+                });
             }
         }
     </script>
