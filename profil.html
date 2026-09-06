@@ -6,13 +6,14 @@
     <title>SanArt - Profilim</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" href="logo.jpg" type="image/jpeg">
-<!-- Firebase Kütüphaneleri -->
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"></script>
 
-<script>
-  // Firebase Yapılandırman (Zaten index.html içinde tanımlı)
+<!-- Firebase Modül Kütüphaneleri (CDN) -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, createUserWithEmailAndPassword, sendPasswordResetEmail, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+  import { getFirestore, collection, doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs, query, where, orderBy, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+  // Firebase Yapılandırması
   const firebaseConfig = {
     apiKey: "AIzaSyD0DnOJ5aEo-Bn9ZuZgdoQkR9PcJK5PFUk",
     authDomain: "sanart-47b05.firebaseapp.com",
@@ -22,13 +23,56 @@
     appId: "1:1054961895807:web:ae15d759dc9517def5324a",
     measurementId: "G-C40XHX8CRB"
   };
+  
   // Firebase başlatma
-  if (!firebase.apps.length) {
-      firebase.initializeApp(firebaseConfig);
-  }
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  // Global fonksiyonlar için window nesnesine aktarıyoruz
+  window.auth = auth;
+  window.db = db;
+  window.onAuthStateChanged = onAuthStateChanged;
+  window.signInWithEmailAndPassword = signInWithEmailAndPassword;
+  window.createUserWithEmailAndPassword = createUserWithEmailAndPassword;
+  window.sendPasswordResetEmail = sendPasswordResetEmail;
+  window.signOut = signOut;
+  window.collection = collection;
+  window.doc = doc;
+  window.getDoc = getDoc;
+  window.setDoc = setDoc;
+  window.updateDoc = updateDoc;
+  window.deleteDoc = deleteDoc;
+  window.getDocs = getDocs;
+  window.query = query;
+  window.where = where;
+  window.orderBy = orderBy;
+  window.addDoc = addDoc;
+  window.serverTimestamp = serverTimestamp;
+
+  // Sayfa yüklendiğinde çalışacak ana tetikleyici
+  window.onload = function() {
+      onAuthStateChanged(auth, async (user) => {
+          if (user) {
+              window.aktifKullaniciEmail = user.email;
+              let userDoc = await getDoc(doc(db, "users", user.uid));
+              if (userDoc.exists()) {
+                  window.aktifKullaniciAdi = userDoc.data().kullaniciAdi;
+              } else {
+                  window.aktifKullaniciAdi = user.email.split('@')[0];
+              }
+              hesapDurumunuKontrolEtVeYukle();
+          } else {
+              window.aktifKullaniciEmail = null;
+              window.aktifKullaniciAdi = null;
+              hesapDurumunuKontrolEtVeYukle();
+          }
+      });
+  };
 </script>
-    
+
 </head>
+
 <body style="padding-bottom: 70px;">
 
     <!-- ÜST BAŞLIK -->
@@ -53,7 +97,7 @@
             <span style="font-size: 36px;">🔐</span>
             <h3 style="color: #2c221e; margin: 10px 0 6px 0; font-size: 17px;">SanArt'a Giriş Yap</h3>
             <p style="font-size: 11px; color: #7a6555; margin-bottom: 15px;">Profilini görmek için giriş yapmalısın.</p>
-            <input type="text" id="girisKullaniciAdiVeyaEmail" placeholder="Kullanıcı Adı veya E-posta" style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 8px; font-size: 11px; box-sizing: border-box;">
+            <input type="email" id="girisEposta" placeholder="E-posta Adresi" style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 8px; font-size: 11px; box-sizing: border-box;">
             <input type="password" id="girisSifre" placeholder="Şifre" style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 10px; font-size: 11px; box-sizing: border-box;">
             <button onclick="girisYapIslemi()" style="background: #a65b32; color: white; width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; margin-bottom: 8px;">Giriş Yap</button>
             <div style="display: flex; justify-content: space-between; font-size: 10px; color: #7a6555;">
@@ -82,11 +126,9 @@
         <div style="background: #faf6f0; border: 2px solid #bfa487; padding: 25px; border-radius: 12px; width: 90%; max-width: 320px; text-align: center; box-sizing: border-box; position: relative;">
             <span style="font-size: 36px;">🔄</span>
             <h3 style="color: #2c221e; margin: 10px 0 6px 0; font-size: 17px;">Şifre Sıfırlama</h3>
-            <p style="font-size: 11px; color: #7a6555; margin-bottom: 10px;">Kullanıcı adını ve kayıtlı e-postanı gir:</p>
-            <input type="text" id="sifirlamaKullaniciAdi" placeholder="Kullanıcı Adın" style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 8px; font-size: 11px; box-sizing: border-box;">
-            <input type="email" id="sifirlamaEposta" placeholder="E-posta Adresin" style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 8px; font-size: 11px; box-sizing: border-box;">
-            <input type="password" id="yeniSifreSifirlama" placeholder="Yeni Şifreni Belirle" style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 12px; font-size: 11px; box-sizing: border-box;">
-            <button onclick="sifreSifirlaIslemi()" style="background: #a65b32; color: white; width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; margin-bottom: 8px;">Şifreyi Güncelle</button>
+            <p style="font-size: 11px; color: #7a6555; margin-bottom: 10px;">Kayıtlı e-posta adresini gir:</p>
+            <input type="email" id="sifirlamaEposta" placeholder="E-posta Adresin" style="width: 100%; padding: 7px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 12px; font-size: 11px; box-sizing: border-box;">
+            <button onclick="sifreSifirlaIslemi()" style="background: #a65b32; color: white; width: 100%; padding: 8px; border: none; border-radius: 4px; font-size: 12px; font-weight: bold; cursor: pointer; margin-bottom: 8px;">Sıfırlama Bağlantısı Gönder</button>
             <span onclick="document.getElementById('sifreUnuttumModal').style.display='none'; document.getElementById('girisModal').style.display='flex';" style="cursor: pointer; font-size: 10px; color: #7a6555; text-decoration: underline;">← Giriş ekranına dön</span>
         </div>
     </div>
@@ -147,8 +189,8 @@
             <label style="font-size: 11px; color: #7a6555; display: block; margin-bottom: 2px;">Biyografi:</label>
             <textarea id="inputBiyografi" style="width: 100%; padding: 5px; font-family: 'Georgia', serif; border: 1px solid #bfa487; border-radius: 4px; margin-bottom: 8px; font-size: 12px; height: 40px; box-sizing: border-box;"></textarea>
             
-            <label style="font-size: 11px; color: #7a6555; display: block; margin-bottom: 2px;">Profil Fotoğrafı Seç:</label>
-            <input type="file" id="inputDosyaFoto" accept="image/*" style="width: 100%; font-size: 11px; margin-bottom: 6px; background: #fff; padding: 4px; border: 1px solid #bfa487; border-radius: 4px; box-sizing: border-box;">
+            <label style="font-size: 11px; color: #7a6555; display: block; margin-bottom: 2px;">Profil Fotoğrafı URL:</label>
+            <input type="text" id="inputDosyaFoto" placeholder="Fotoğraf bağlantısı (URL)" style="width: 100%; font-size: 11px; margin-bottom: 6px; background: #fff; padding: 5px; border: 1px solid #bfa487; border-radius: 4px; box-sizing: border-box;">
             
             <label style="font-size: 11px; display: block; margin-bottom: 10px; cursor: pointer; color: #a65b32; font-weight: bold;">
                 <input type="checkbox" id="gizleProfilFoto"> Profil fotoğrafı istemiyorum (Kaldır)
@@ -178,22 +220,17 @@
         </div>
     </div>
 
-    <!-- JAVASCRIPT -->
+    <!-- JAVASCRIPT FONKSİYONLARI -->
     <script>
-        window.onload = function() {
-            hesapDurumunuKontrolEtVeYukle();
-        };
-
-        function hesapDurumunuKontrolEtVeYukle() {
+        async function hesapDurumunuKontrolEtVeYukle() {
             var urlParams = new URLSearchParams(window.location.search);
             var ziyaretEdilenKisi = urlParams.get('kisi');
-            var aktifKullanici = localStorage.getItem("sanart_kullanici");
 
-            let hedefKisi = ziyaretEdilenKisi || aktifKullanici;
+            let hedefKisi = ziyaretEdilenKisi || window.aktifKullaniciAdi;
             let profilMetin = document.getElementById('altMenuProfilMetin');
             let profilHarf = document.getElementById('altMenuAvatarHarf');
 
-            if (!aktifKullanici || aktifKullanici === "Misafir") {
+            if (!window.aktifKullaniciAdi) {
                 if (!ziyaretEdilenKisi) {
                     document.getElementById('girisModal').style.display = 'flex';
                     document.getElementById('profilGirisButonuAlani').style.display = 'flex';
@@ -202,9 +239,9 @@
                 }
             }
 
-            if(aktifKullanici && aktifKullanici !== "Misafir") {
-                if(profilMetin) profilMetin.innerText = aktifKullanici;
-                if(profilHarf) profilHarf.innerText = aktifKullanici.charAt(0).toUpperCase();
+            if(window.aktifKullaniciAdi) {
+                if(profilMetin) profilMetin.innerText = window.aktifKullaniciAdi;
+                if(profilHarf) profilHarf.innerText = window.aktifKullaniciAdi.charAt(0).toUpperCase();
             }
 
             if (!hedefKisi) {
@@ -217,11 +254,16 @@
             document.getElementById('ustBaslikKullaniciAdi').innerText = "SanArt - " + hedefKisi;
             document.getElementById('profilKullaniciAdi').innerText = hedefKisi;
             
-            let profilBio = localStorage.getItem("sanart_bio_" + hedefKisi) || '"Sanatın ve estetiğin peşinde..."';
-            document.getElementById('profilBiyografi').innerText = profilBio;
+            let userQuery = await window.getDocs(window.query(window.collection(window.db, "users"), window.where("kullaniciAdi", "==", hedefKisi)));
+            let userData = {};
+            if (!userQuery.empty) {
+                userData = userQuery.docs[0].data();
+            }
 
-            var avatar = localStorage.getItem("sanart_avatar_" + hedefKisi);
-            if (avatar && avatar.startsWith('data:image')) {
+            document.getElementById('profilBiyografi').innerText = userData.biyografi || '"Sanatın ve estetiğin peşinde..."';
+
+            var avatar = userData.avatar;
+            if (avatar) {
                 document.getElementById('profilAvatarContainer').style.backgroundImage = "url('" + avatar + "')";
                 document.getElementById('profilAvatarMetin').style.display = "none";
             } else {
@@ -230,11 +272,11 @@
                 document.getElementById('profilAvatarMetin').innerText = hedefKisi.charAt(0).toUpperCase();
             }
 
-            if (ziyaretEdilenKisi && ziyaretEdilenKisi !== aktifKullanici) {
+            if (ziyaretEdilenKisi && ziyaretEdilenKisi !== window.aktifKullaniciAdi) {
                 document.getElementById('profilButonlarAlani').style.display = 'none';
                 document.getElementById('profilGirisButonuAlani').style.display = 'none';
             } else {
-                if(aktifKullanici && aktifKullanici !== "Misafir") {
+                if(window.aktifKullaniciAdi) {
                     document.getElementById('profilButonlarAlani').style.display = 'flex';
                     document.getElementById('profilGirisButonuAlani').style.display = 'none';
                 } else {
@@ -243,7 +285,7 @@
                 }
             }
 
-            gizlilikDurumunuUygulaVeYukle(hedefKisi);
+            gizlilikDurumunuUygulaVeYukle(hedefKisi, userData.gizlilik || {});
         }
 
         function girisModalKapat() {
@@ -256,43 +298,37 @@
             document.getElementById('profilGirisButonuAlani').style.display = 'flex';
         }
 
-        function gizlilikDurumunuUygulaVeYukle(kullaniciAdi) {
-            let gizlilik = JSON.parse(localStorage.getItem("sanart_gizlilik_" + kullaniciAdi) || "{}");
-            
+        function gizlilikDurumunuUygulaVeYukle(kullaniciAdi, gizlilik) {
             document.getElementById('sayiEser').style.visibility = gizlilik.eser ? 'hidden' : 'visible';
             document.getElementById('sayiBegeni').style.visibility = gizlilik.begeni ? 'hidden' : 'visible';
             document.getElementById('sayiTakipci').style.visibility = gizlilik.takipci ? 'hidden' : 'visible';
             document.getElementById('sayiTakip').style.visibility = gizlilik.takip ? 'hidden' : 'visible';
 
-            if(gizlilik.takipci) document.getElementById('kutuTakipci').style.pointerEvents = 'none';
-            else document.getElementById('kutuTakipci').style.pointerEvents = 'auto';
-
-            if(gizlilik.takip) document.getElementById('kutuTakip').style.pointerEvents = 'none';
-            else document.getElementById('kutuTakip').style.pointerEvents = 'auto';
+            document.getElementById('kutuTakipci').style.pointerEvents = gizlilik.takipci ? 'none' : 'auto';
+            document.getElementById('kutuTakip').style.pointerEvents = gizlilik.takip ? 'none' : 'auto';
 
             profilIstatistikleriniVeEserleriYukle(kullaniciAdi);
         }
 
-        function profilIstatistikleriniVeEserleriYukle(kullaniciAdi) {
-            let tumEserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let kullaniciEserleri = tumEserler.filter(e => e.yazar === kullaniciAdi);
-
+        async function profilIstatistikleriniVeEserleriYukle(kullaniciAdi) {
+            let eserlerSnap = await window.getDocs(window.query(window.collection(window.db, "eserler"), window.where("yazar", "==", kullaniciAdi)));
+            let kullaniciEserleri = [];
             let toplamBegeni = 0;
-            kullaniciEserleri.forEach(e => { if (e.begenenler) toplamBegeni += e.begenenler.length; });
+
+            eserlerSnap.forEach(doc => {
+                let eser = { id: doc.id, ...doc.data() };
+                kullaniciEserleri.push(eser);
+                if (eser.begenenler) toplamBegeni += eser.begenenler.length;
+            });
 
             document.getElementById('sayiEser').innerText = kullaniciEserleri.length;
             document.getElementById('sayiBegeni').innerText = toplamBegeni;
 
-            let takipEdilenler = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + kullaniciAdi) || "[]");
-            document.getElementById('sayiTakip').innerText = takipEdilenler.length;
+            let takipSnap = await window.getDocs(window.query(window.collection(window.db, "takipler"), window.where("takipEden", "==", kullaniciAdi)));
+            document.getElementById('sayiTakip').innerText = takipSnap.size;
             
-            let tumKullanicilar = JSON.parse(localStorage.getItem("sanart_kullanici_listesi") || "[]");
-            let takipciler = [];
-            tumKullanicilar.forEach(k => {
-                let kTakipleri = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + k) || "[]");
-                if (kTakipleri.includes(kullaniciAdi)) takipciler.push(k);
-            });
-            document.getElementById('sayiTakipci').innerText = takipciler.length;
+            let takipciSnap = await window.getDocs(window.query(window.collection(window.db, "takipler"), window.where("takipEdilen", "==", kullaniciAdi)));
+            document.getElementById('sayiTakipci').innerText = takipciSnap.size;
 
             let ızgara = document.getElementById('eserlerIzgarasi');
             if (kullaniciEserleri.length > 0) {
@@ -318,31 +354,32 @@
             }
         }
 
-        function eserDetayAc(eserId) {
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let eser = eserler.find(e => String(e.id) === String(eserId));
-            if (!eser) return;
+        async function eserDetayAc(eserId) {
+            let docRef = await window.getDoc(window.doc(window.db, "eserler", eserId));
+            if (!docRef.exists()) return;
+            let eser = { id: docRef.id, ...docRef.data() };
 
-            let aktifKullanici = localStorage.getItem("sanart_kullanici");
             let begenenler = eser.begenenler || [];
-            let begenildiMi = begenenler.includes(aktifKullanici);
+            let begenildiMi = begenenler.includes(window.aktifKullaniciAdi);
 
             let yorumlarHTML = "";
-            if (eser.yorumlar && eser.yorumlar.length > 0) {
-                eser.yorumlar.forEach(y => {
+            let yorumlarSnap = await window.getDocs(window.query(window.collection(window.db, "eserler", eserId, "yorumlar"), window.orderBy("tarih", "asc")));
+            if (!yorumlarSnap.empty) {
+                yorumlarSnap.forEach(yDoc => {
+                    let y = yDoc.data();
                     yorumlarHTML += `<div style="font-size: 12px; color: #7a6555; margin-bottom: 4px;"><strong>${y.yazar}:</strong> ${y.metin}</div>`;
                 });
             } else {
                 yorumlarHTML = `<p style="font-size: 11px; color: #a08c7d; font-style: italic;">Henüz yorum yok.</p>`;
             }
 
-            let silBtn = (aktifKullanici === eser.yazar || aktifKullanici === "yönetici") ? 
+            let silBtn = (window.aktifKullaniciAdi === eser.yazar) ? 
                 `<button onclick="eserSil('${eser.id}')" style="background: #d9534f; color: white; border: none; padding: 6px; width: 100%; border-radius: 4px; margin-top: 10px; font-size: 11px; cursor: pointer; font-weight: bold;">Eseri Sil</button>` : "";
 
             document.getElementById('modalEserIcerik').innerHTML = `
                 <img src="${eser.gorsel}" style="width: 100%; border-radius: 6px; border: 1px solid #bfa487; display: block; margin-bottom: 10px;">
                 <h4 style="font-size: 14px; color: #2c221e; margin-bottom: 4px;">${eser.baslik}</h4>
-                <p style="font-size: 11px; color: #7a6555; margin-bottom: 8px;">Paylaşan: <strong>${eser.yazar}</strong> (${eser.tarih || 'Bugün'})</p>
+                <p style="font-size: 11px; color: #7a6555; margin-bottom: 8px;">Paylaşan: <strong>${eser.yazar}</strong></p>
                 <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
                     <span onclick="modalBegeniDegistir('${eser.id}')" style="cursor: pointer; font-size: 20px;">${begenildiMi ? '❤️' : '🤍'}</span>
                     <strong style="font-size: 13px; color: #2c221e;">${begenenler.length} Beğeni</strong>
@@ -361,97 +398,89 @@
 
         function eserDetayKapat() { document.getElementById('eserDetayModal').style.display = 'none'; }
 
-        function modalBegeniDegistir(eserId) {
-            let aktif = localStorage.getItem("sanart_kullanici");
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let eser = eserler.find(e => String(e.id) === String(eserId));
-            if (!eser) return;
-            if(!eser.begenenler) eser.begenenler = [];
-            let idx = eser.begenenler.indexOf(aktif);
-            if(idx > -1) eser.begenenler.splice(idx, 1);
-            else eser.begenenler.push(aktif);
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+        async function modalBegeniDegistir(eserId) {
+            if (!window.aktifKullaniciAdi) return alert("Beğenmek için giriş yapmalısınız.");
+            let ref = window.doc(window.db, "eserler", eserId);
+            let doc = await window.getDoc(ref);
+            if (!doc.exists()) return;
+            let eser = doc.data();
+            let begenenler = eser.begenenler || [];
+            
+            let idx = begenenler.indexOf(window.aktifKullaniciAdi);
+            if(idx > -1) {
+                begenenler.splice(idx, 1);
+            } else {
+                begenenler.push(window.aktifKullaniciAdi);
+            }
+            await window.updateDoc(ref, { begenenler: begenenler });
             eserDetayAc(eserId);
             
             var urlParams = new URLSearchParams(window.location.search);
-            profilIstatistikleriniVeEserleriYukle(urlParams.get('kisi') || aktif);
+            profilIstatistikleriniVeEserleriYukle(urlParams.get('kisi') || window.aktifKullaniciAdi);
         }
 
-        function modalYorumYap(eserId) {
-            let aktif = localStorage.getItem("sanart_kullanici");
+        async function modalYorumYap(eserId) {
+            if (!window.aktifKullaniciAdi) return alert("Yorum yapmak için giriş yapmalısınız.");
             let metin = document.getElementById('modalYorumInput').value.trim();
             if(!metin) return;
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let eser = eserler.find(e => String(e.id) === String(eserId));
-            if(!eser) return;
-            if(!eser.yorumlar) eser.yorumlar = [];
-            eser.yorumlar.push({ yazar: aktif, metin: metin });
-            localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
+            
+            await window.addDoc(window.collection(window.db, "eserler", eserId, "yorumlar"), {
+                yazar: window.aktifKullaniciAdi,
+                metin: metin,
+                tarih: window.serverTimestamp()
+            });
             eserDetayAc(eserId);
         }
 
-        function eserSil(eserId) {
+        async function eserSil(eserId) {
             if(!confirm("Bu eseri silmek istediğine emin misin?")) return;
-            let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-            let yeniListe = eserler.filter(e => String(e.id) !== String(eserId));
-            localStorage.setItem("sanart_eserler", JSON.stringify(yeniListe));
+            await window.deleteDoc(window.doc(window.db, "eserler", eserId));
             eserDetayKapat();
             hesapDurumunuKontrolEtVeYukle();
         }
 
-        function takipciListesiniAc() {
+        async function takipciListesiniAc() {
             var urlParams = new URLSearchParams(window.location.search);
-            let hedef = urlParams.get('kisi') || localStorage.getItem("sanart_kullanici");
-            let aktif = localStorage.getItem("sanart_kullanici");
-            let profilSahibiMi = (!urlParams.get('kisi') || urlParams.get('kisi') === aktif);
+            let hedef = urlParams.get('kisi') || window.aktifKullaniciAdi;
+            let profilSahibiMi = (!urlParams.get('kisi') || urlParams.get('kisi') === window.aktifKullaniciAdi);
 
             document.getElementById('listeBaslik').innerText = hedef + " - Takipçiler";
-            let tumKullanicilar = JSON.parse(localStorage.getItem("sanart_kullanici_listesi") || "[]");
+            let snapshot = await window.getDocs(window.query(window.collection(window.db, "takipler"), window.where("takipEdilen", "==", hedef)));
             let html = "";
-            let takipciSayisi = 0;
 
-            tumKullanicilar.forEach(k => {
-                let takipListesi = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + k) || "[]");
-                if (takipListesi.includes(hedef)) {
-                    takipciSayisi++;
-                    let silBtnHTML = profilSahibiMi ? `<button onclick="takipciyiSil('${k}')" style="background:#d9534f; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer; float:right;">Sil</button>` : "";
-                    html += `<div style="padding: 6px 0; border-bottom: 1px solid #eae0d0; display:flex; justify-content:space-between; align-items:center;">
-                        <span onclick="baskaProfiliAc('${k}')" style="cursor: pointer; color: #a65b32; font-weight: bold;">👤 ${k}</span>
-                        ${silBtnHTML}
-                    </div>`;
-                }
+            snapshot.forEach(doc => {
+                let t = doc.data();
+                let silBtnHTML = profilSahibiMi ? `<button onclick="takipciyiSil('${doc.id}', '${t.takipEden}')" style="background:#d9534f; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer; float:right;">Sil</button>` : "";
+                html += `<div style="padding: 6px 0; border-bottom: 1px solid #eae0d0; display:flex; justify-content:space-between; align-items:center;">
+                    <span onclick="baskaProfiliAc('${t.takipEden}')" style="cursor: pointer; color: #a65b32; font-weight: bold;">👤 ${t.takipEden}</span>
+                    ${silBtnHTML}
+                </div>`;
             });
             document.getElementById('listeIcerik').innerHTML = html || "Henüz takipçi yok.";
             document.getElementById('listeModal').style.display = 'flex';
         }
 
-        function takipciyiSil(takipciAdi) {
+        async function takipciyiSil(docId, takipciAdi) {
             if(!confirm(takipciAdi + " adlı takipçiyi silmek istediğinize emin misiniz?")) return;
-            let aktif = localStorage.getItem("sanart_kullanici");
-            let takipListesi = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + takipciAdi) || "[]");
-            let idx = takipListesi.indexOf(aktif);
-            if(idx > -1) {
-                takipListesi.splice(idx, 1);
-                localStorage.setItem("sanart_takip_edilenler_" + takipciAdi, JSON.stringify(takipListesi));
-            }
+            await window.deleteDoc(window.doc(window.db, "takipler", docId));
             takipciListesiniAc();
             hesapDurumunuKontrolEtVeYukle();
         }
 
-        function takipEdilenListesiniAc() {
+        async function takipEdilenListesiniAc() {
             var urlParams = new URLSearchParams(window.location.search);
-            let hedef = urlParams.get('kisi') || localStorage.getItem("sanart_kullanici");
-            let aktif = localStorage.getItem("sanart_kullanici");
-            let profilSahibiMi = (!urlParams.get('kisi') || urlParams.get('kisi') === aktif);
+            let hedef = urlParams.get('kisi') || window.aktifKullaniciAdi;
+            let profilSahibiMi = (!urlParams.get('kisi') || urlParams.get('kisi') === window.aktifKullaniciAdi);
 
             document.getElementById('listeBaslik').innerText = hedef + " - Takip Edilenler";
-            let takipEdilenler = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + hedef) || "[]");
+            let snapshot = await window.getDocs(window.query(window.collection(window.db, "takipler"), window.where("takipEden", "==", hedef)));
             let html = "";
             
-            takipEdilenler.forEach(k => {
-                let silBtnHTML = profilSahibiMi ? `<button onclick="takiptenCikar('${k}')" style="background:#d9534f; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer; float:right;">Bırak</button>` : "";
+            snapshot.forEach(doc => {
+                let t = doc.data();
+                let silBtnHTML = profilSahibiMi ? `<button onclick="takiptenCikar('${doc.id}')" style="background:#d9534f; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:10px; cursor:pointer; float:right;">Bırak</button>` : "";
                 html += `<div style="padding: 6px 0; border-bottom: 1px solid #eae0d0; display:flex; justify-content:space-between; align-items:center;">
-                    <span onclick="baskaProfiliAc('${k}')" style="cursor: pointer; color: #a65b32; font-weight: bold;">👤 ${k}</span>
+                    <span onclick="baskaProfiliAc('${t.takipEdilen}')" style="cursor: pointer; color: #a65b32; font-weight: bold;">👤 ${t.takipEdilen}</span>
                     ${silBtnHTML}
                 </div>`;
             });
@@ -459,15 +488,9 @@
             document.getElementById('listeModal').style.display = 'flex';
         }
 
-        function takiptenCikar(kisiAdi) {
-            if(!confirm(kisiAdi + " adlı kişiyi takipten çıkmak istiyor musunuz?")) return;
-            let aktif = localStorage.getItem("sanart_kullanici");
-            let takipEdilenler = JSON.parse(localStorage.getItem("sanart_takip_edilenler_" + aktif) || "[]");
-            let idx = takipEdilenler.indexOf(kisiAdi);
-            if(idx > -1) {
-                takipEdilenler.splice(idx, 1);
-                localStorage.setItem("sanart_takip_edilenler_" + aktif, JSON.stringify(takipEdilenler));
-            }
+        async function takiptenCikar(docId) {
+            if(!confirm("Bu kişiyi takipten çıkmak istiyor musunuz?")) return;
+            await window.deleteDoc(window.doc(window.db, "takipler", docId));
             takipEdilenListesiniAc();
             hesapDurumunuKontrolEtVeYukle();
         }
@@ -494,7 +517,7 @@
             document.getElementById('sifreUnuttumModal').style.display = 'flex';
         }
 
-        function kayitOlIslemi() {
+        async function kayitOlIslemi() {
             let yeniAd = document.getElementById('yeniKullaniciAdi').value.trim();
             let yeniEmail = document.getElementById('yeniEposta').value.trim();
             let yeniSifre = document.getElementById('yeniSifre').value.trim();
@@ -504,103 +527,86 @@
                 return;
             }
 
-            let kullaniciListesi = JSON.parse(localStorage.getItem("sanart_kullanici_listesi") || "[]");
-            if (kullaniciListesi.includes(yeniAd)) {
-                alert("Bu kullanıcı adı zaten alınmış!");
-                return;
+            try {
+                let checkUser = await window.getDocs(window.query(window.collection(window.db, "users"), window.where("kullaniciAdi", "==", yeniAd)));
+                if (!checkUser.empty) {
+                    alert("Bu kullanıcı adı zaten alınmış!");
+                    return;
+                }
+
+                let userCredential = await window.createUserWithEmailAndPassword(window.auth, yeniEmail, yeniSifre);
+                let user = userCredential.user;
+
+                await window.setDoc(window.doc(window.db, "users", user.uid), {
+                    kullaniciAdi: yeniAd,
+                    email: yeniEmail,
+                    biyografi: "Sanatın ve estetiğin peşinde...",
+                    avatar: "",
+                    gizlilik: { eser: false, begeni: false, takipci: false, takip: false }
+                });
+
+                alert("Kayıt başarılı! Hoş geldin " + yeniAd);
+                document.getElementById('kayitModal').style.display = 'none';
+                window.location.href = "profil.html";
+            } catch (error) {
+                alert("Kayıt hatası: " + error.message);
             }
-
-            let tumVeriler = JSON.parse(localStorage.getItem("sanart_kullanici_detaylari") || "{}");
-            tumVeriler[yeniAd] = { email: yeniEmail, sifre: yeniSifre };
-            localStorage.setItem("sanart_kullanici_detaylari", JSON.stringify(tumVeriler));
-
-            kullaniciListesi.push(yeniAd);
-            localStorage.setItem("sanart_kullanici_listesi", JSON.stringify(kullaniciListesi));
-
-            localStorage.setItem("sanart_kullanici", yeniAd);
-            alert("Kayıt başarılı! Hoş geldin " + yeniAd);
-            document.getElementById('kayitModal').style.display = 'none';
-            window.location.href = "profil.html";
         }
 
-        function girisYapIslemi() {
-            let girdi = document.getElementById('girisKullaniciAdiVeyaEmail').value.trim();
+        async function girisYapIslemi() {
+            let email = document.getElementById('girisEposta').value.trim();
             let sifre = document.getElementById('girisSifre').value.trim();
 
-            if (!girdi || !sifre) {
+            if (!email || !sifre) {
                 alert("Lütfen giriş bilgilerini doldurun!");
                 return;
             }
 
-            let tumVeriler = JSON.parse(localStorage.getItem("sanart_kullanici_detaylari") || "{}");
-            let bulunanKullanici = null;
-
-            for (let kAdi in tumVeriler) {
-                if (kAdi === girdi || tumVeriler[kAdi].email === girdi) {
-                    bulunanKullanici = kAdi;
-                    break;
-                }
+            try {
+                await window.signInWithEmailAndPassword(window.auth, email, sifre);
+                document.getElementById('girisModal').style.display = 'none';
+                window.location.href = "profil.html";
+            } catch (error) {
+                alert("Giriş başarısız: " + error.message);
             }
-
-            let kullaniciListesi = JSON.parse(localStorage.getItem("sanart_kullanici_listesi") || "[]");
-            if (!bulunanKullanici && kullaniciListesi.includes(girdi)) {
-                bulunanKullanici = girdi;
-            }
-
-            if (!bulunanKullanici) {
-                alert("Böyle bir kullanıcı veya e-posta bulunamadı!");
-                return;
-            }
-
-            let kaydedilenSifre = tumVeriler[bulunanKullanici] ? tumVeriler[bulunanKullanici].sifre : null;
-            if (kaydedilenSifre && kaydedilenSifre !== sifre) {
-                alert("Şifre yanlış!");
-                return;
-            }
-
-            localStorage.setItem("sanart_kullanici", bulunanKullanici);
-            document.getElementById('girisModal').style.display = 'none';
-            window.location.href = "profil.html";
         }
 
-        function sifreSifirlaIslemi() {
-            let kAdi = document.getElementById('sifirlamaKullaniciAdi').value.trim();
+        async function sifreSifirlaIslemi() {
             let email = document.getElementById('sifirlamaEposta').value.trim();
-            let yeniSifre = document.getElementById('yeniSifreSifirlama').value.trim();
-
-            if(!kAdi || !email || !yeniSifre) {
-                alert("Lütfen tüm alanları doldurun!");
+            if(!email) {
+                alert("Lütfen e-posta adresinizi girin!");
                 return;
             }
-
-            let tumVeriler = JSON.parse(localStorage.getItem("sanart_kullanici_detaylari") || "{}");
-            
-            if (tumVeriler[kAdi] && tumVeriler[kAdi].email === email) {
-                tumVeriler[kAdi].sifre = yeniSifre;
-                localStorage.setItem("sanart_kullanici_detaylari", JSON.stringify(tumVeriler));
-                alert("Şifreniz başarıyla güncellendi! Yeni şifrenizle giriş yapabilirsiniz.");
+            try {
+                await window.sendPasswordResetEmail(window.auth, email);
+                alert("Şifre sıfırlama bağlantısı e-posta adresinize gönderildi.");
                 document.getElementById('sifreUnuttumModal').style.display = 'none';
                 document.getElementById('girisModal').style.display = 'flex';
-            } else {
-                alert("Girdiğiniz Kullanıcı Adı ve E-posta adresi eşleşmiyor veya kayıtlı değil!");
+            } catch (error) {
+                alert("Hata: " + error.message);
             }
         }
 
-        function cikisYapIslemi() {
+        async function cikisYapIslemi() {
             if(confirm("Çıkış yapmak istediğine emin misin?")) {
-                localStorage.removeItem("sanart_kullanici");
+                await window.signOut(window.auth);
                 window.location.href = "profil.html";
             }
         }
 
-        function profilDuzenleModaliniAc() { 
-            let aktif = localStorage.getItem("sanart_kullanici");
-            document.getElementById('inputDuzenleIsim').value = aktif;
-            document.getElementById('inputBiyografi').value = localStorage.getItem("sanart_bio_" + aktif) || "";
-            document.getElementById('inputDosyaFoto').value = ""; 
+        async function profilDuzenleModaliniAc() { 
+            let user = window.auth.currentUser;
+            if (!user) return;
+
+            let userDoc = await window.getDoc(window.doc(window.db, "users", user.uid));
+            let data = userDoc.exists() ? userDoc.data() : {};
+
+            document.getElementById('inputDuzenleIsim').value = data.kullaniciAdi || "";
+            document.getElementById('inputBiyografi').value = data.biyografi || "";
+            document.getElementById('inputDosyaFoto').value = data.avatar || ""; 
             document.getElementById('gizleProfilFoto').checked = false;
             
-            let gizlilik = JSON.parse(localStorage.getItem("sanart_gizlilik_" + aktif) || "{}");
+            let gizlilik = data.gizlilik || {};
             document.getElementById('gizleEser').checked = !!gizlilik.eser;
             document.getElementById('gizleBegeni').checked = !!gizlilik.begeni;
             document.getElementById('gizleTakipci').checked = !!gizlilik.takipci;
@@ -613,11 +619,13 @@
             document.getElementById('duzenleModal').style.display = 'none'; 
         }
 
-        // HİÇBİR BOYUT SINIRLAMASI OLMADAN HER FOTOĞRAFI KÜÇÜLTEREK KABUL EDEN GÜVENLİ KAYIT FONKSİYONU
-        function profilKaydet() {
-            let eskiKullanici = localStorage.getItem("sanart_kullanici");
+        async function profilKaydet() {
+            let user = window.auth.currentUser;
+            if (!user) return;
+
             let yeniIsim = document.getElementById('inputDuzenleIsim').value.trim();
             let biyo = document.getElementById('inputBiyografi').value;
+            let profilFotoURL = document.getElementById('inputDosyaFoto').value.trim();
             let profilFotoIstemiyorum = document.getElementById('gizleProfilFoto').checked;
 
             if (!yeniIsim) {
@@ -625,8 +633,18 @@
                 return;
             }
 
-            function islemiBitir(aktifIsim) {
-                localStorage.setItem("sanart_bio_" + aktifIsim, biyo);
+            try {
+                let userDocRef = window.doc(window.db, "users", user.uid);
+                let currentDoc = await window.getDoc(userDocRef);
+                let eskiIsim = currentDoc.data().kullaniciAdi;
+
+                if (yeniIsim !== eskiIsim) {
+                    let checkUser = await window.getDocs(window.query(window.collection(window.db, "users"), window.where("kullaniciAdi", "==", yeniIsim)));
+                    if (!checkUser.empty) {
+                        alert("Bu kullanıcı adı başkası tarafından kullanılıyor!");
+                        return;
+                    }
+                }
 
                 let gizlilik = {
                     eser: document.getElementById('gizleEser').checked,
@@ -634,101 +652,25 @@
                     takipci: document.getElementById('gizleTakipci').checked,
                     takip: document.getElementById('gizleTakip').checked
                 };
-                localStorage.setItem("sanart_gizlilik_" + aktifIsim, JSON.stringify(gizlilik));
+
+                let updateData = {
+                    kullaniciAdi: yeniIsim,
+                    biyografi: biyo,
+                    gizlilik: gizlilik
+                };
+
+                if (profilFotoIstemiyorum) {
+                    updateData.avatar = "";
+                } else if (profilFotoURL) {
+                    updateData.avatar = profilFotoURL;
+                }
+
+                await window.updateDoc(userDocRef, updateData);
 
                 profilDuzenleModaliniKapat();
-                window.location.href = "profil.html" + (aktifIsim !== localStorage.getItem("sanart_kullanici") ? "?kisi=" + encodeURIComponent(aktifIsim) : "");
-            }
-
-            if (yeniIsim !== eskiKullanici) {
-                let kullaniciListesi = JSON.parse(localStorage.getItem("sanart_kullanici_listesi") || "[]");
-                if (kullaniciListesi.includes(yeniIsim)) {
-                    alert("Bu kullanıcı adı başkası tarafından kullanılıyor!");
-                    return;
-                }
-                let idx = kullaniciListesi.indexOf(eskiKullanici);
-                if(idx > -1) kullaniciListesi[idx] = yeniIsim;
-                localStorage.setItem("sanart_kullanici_listesi", JSON.stringify(kullaniciListesi));
-                localStorage.setItem("sanart_kullanici", yeniIsim);
-
-                let detaylar = JSON.parse(localStorage.getItem("sanart_kullanici_detaylari") || "{}");
-                if(detaylar[eskiKullanici]) {
-                    detaylar[yeniIsim] = detaylar[eskiKullanici];
-                    delete detaylar[eskiKullanici];
-                    localStorage.setItem("sanart_kullanici_detaylari", JSON.stringify(detaylar));
-                }
-
-                if(localStorage.getItem("sanart_avatar_" + eskiKullanici)) {
-                    localStorage.setItem("sanart_avatar_" + yeniIsim, localStorage.getItem("sanart_avatar_" + eskiKullanici));
-                    localStorage.removeItem("sanart_avatar_" + eskiKullanici);
-                }
-                if(localStorage.getItem("sanart_gizlilik_" + eskiKullanici)) {
-                    localStorage.removeItem("sanart_gizlilik_" + eskiKullanici);
-                }
-                if(localStorage.getItem("sanart_takip_edilenler_" + eskiKullanici)) {
-                    localStorage.setItem("sanart_takip_edilenler_" + yeniIsim, localStorage.getItem("sanart_takip_edilenler_" + eskiKullanici));
-                    localStorage.removeItem("sanart_takip_edilenler_" + eskiKullanici);
-                }
-
-                let eserler = JSON.parse(localStorage.getItem("sanart_eserler") || "[]");
-                eserler.forEach(e => { if(e.yazar === eskiKullanici) e.yazar = yeniIsim; });
-                localStorage.setItem("sanart_eserler", JSON.stringify(eserler));
-                
-                eskiKullanici = yeniIsim;
-            }
-
-            if (profilFotoIstemiyorum) {
-                localStorage.removeItem("sanart_avatar_" + eskiKullanici);
-                islemiBitir(eskiKullanici);
-                return;
-            }
-
-            let dosyaInput = document.getElementById('inputDosyaFoto');
-            if (dosyaInput.files && dosyaInput.files[0]) {
-                let dosya = dosyaInput.files[0];
-                let r = new FileReader();
-                
-                r.onload = function(e) {
-                    let img = new Image();
-                    img.src = e.target.result;
-                    img.onload = function() {
-                        // Seçilen fotoğrafın kalitesini bozmadan tarayıcıyı / hafızayı doldurmayacak ideal boyuta (250x250 piksel) otomatik küçültüyoruz
-                        let canvas = document.createElement('canvas');
-                        let maxBoyut = 250;
-                        let genislik = img.width;
-                        let yukseklik = img.height;
-
-                        if (genislik > yukseklik) {
-                            if (genislik > maxBoyut) {
-                                yukseklik *= maxBoyut / genislik;
-                                genislik = maxBoyut;
-                            }
-                        } else {
-                            if (yukseklik > maxBoyut) {
-                                genislik *= maxBoyut / yukseklik;
-                                yukseklik = maxBoyut;
-                            }
-                        }
-
-                        canvas.width = genislik;
-                        canvas.height = yukseklik;
-                        let ctx = canvas.getContext('2d');
-                        ctx.drawImage(img, 0, 0, genislik, yukseklik);
-
-                        // Sıkıştırılmış ve optimize edilmiş görsel verisini al (hangi boyut olursa olsun hatasız kaydolur)
-                        let sıkıstırilmisVeri = canvas.toDataURL('image/jpeg', 0.85);
-                        
-                        try {
-                            localStorage.setItem("sanart_avatar_" + eskiKullanici, sıkıstırilmisVeri);
-                            islemiBitir(eskiKullanici);
-                        } catch (err) {
-                            alert("Fotoğraf kaydedilemedi.");
-                        }
-                    };
-                };
-                r.readAsDataURL(dosya);
-            } else {
-                islemiBitir(eskiKullanici);
+                window.location.href = "profil.html" + (yeniIsim !== eskiIsim ? "?kisi=" + encodeURIComponent(yeniIsim) : "");
+            } catch (err) {
+                alert("Güncelleme sırasında hata oluştu: " + err.message);
             }
         }
 
